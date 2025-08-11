@@ -363,11 +363,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
 
               <button
                 onClick={handleBooking}
-
                 disabled={isSubmitting || !selectedCourt || !selectedTime || timeSlots.length === 0}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
-
-                disabled={isSubmitting || !selectedCourt || timeSlots.length === 0}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
 
 
