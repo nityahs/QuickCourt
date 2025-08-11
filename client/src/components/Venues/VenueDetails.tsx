@@ -126,9 +126,6 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
           <ArrowLeft size={20} className="mr-2" />
           Back
         </button>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-600">Login / Sign Up</span>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

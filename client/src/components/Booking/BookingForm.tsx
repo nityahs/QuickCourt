@@ -228,9 +228,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
           <ArrowLeft size={20} className="mr-2" />
           Back
         </button>
-        <div className="text-right">
-          <span className="text-gray-600">{user?.fullName || 'Guest'}</span>
-        </div>
       </div>
 
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Court Booking</h1>
