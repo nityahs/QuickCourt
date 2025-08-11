@@ -212,10 +212,11 @@ r.get('/facility-owner/:ownerId', auth, roleGuard('owner'), async (req, res) => 
 r.get('/admin', async (req,res)=>{
   try {
     // Basic counts
-    const [totalUsers, totalFacilities, totalBookings] = await Promise.all([
+    const [totalUsers, totalFacilities, totalBookings, activeCourts] = await Promise.all([
       User.countDocuments(),
       Facility.countDocuments(),
-      Booking.countDocuments()
+      Booking.countDocuments(),
+      Court.countDocuments({ isActive: true })
     ]);
     
     // Count facility owners
@@ -273,6 +274,7 @@ r.get('/admin', async (req,res)=>{
       totalOwners,
       totalFacilities,
       totalBookings,
+      activeCourts,
       
       // Chart data
       bookingTrends,

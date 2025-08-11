@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from '../types';
-import { authAPI, UserResponse } from '../services/auth';
+import { authAPI } from '../services/auth';
 
 // Token storage key
 const TOKEN_KEY = 'quickcourt_token';
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [verificationEmail, setVerificationEmail] = useState<string>('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadUser = async () => {
@@ -162,9 +164,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     setUser(null);
+    setVerificationEmail('');
+    
     localStorage.removeItem('quickcourt_user');
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_ID_KEY);
+    
+    localStorage.removeItem('quickcourt_facilities');
+    localStorage.removeItem('quickcourt_bookings');
+    localStorage.removeItem('quickcourt_venues');
+    localStorage.removeItem('quickcourt_profile');
+    
+    sessionStorage.clear();
+    
+    navigate('/');
+    
+    window.location.href = '/';
   };
 
   const verifyOtp = async (otp: string): Promise<void> => {

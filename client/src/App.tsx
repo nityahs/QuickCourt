@@ -12,10 +12,10 @@ import VenueDetails from './components/Venues/VenueDetails';
 import BookingForm from './components/Booking/BookingForm';
 import UserProfile from './components/User/UserProfile';
 import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
-import AdminRoutes from './admin/components/AdminRoutes';
+import AdminDashboard from './components/Admin/AdminDashboard';
 import { Venue } from './types';
 
-type AppView = 'home' | 'venues' | 'venue-details' | 'booking' | 'bookings' | 'profile' | 'verify-otp' | 'facility-owner';
+type AppView = 'home' | 'venues' | 'venue-details' | 'booking' | 'bookings' | 'profile' | 'verify-otp' | 'facility-owner' | 'admin';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('home');
@@ -65,12 +65,21 @@ function AppContent() {
       } else if (path === '/venues') {
         setCurrentView('venues');
       } else if (path === '/bookings') {
-        setCurrentView('bookings');
+        // Redirect admin users to home page, others can access bookings
+        if (user?.role === 'admin') {
+          setCurrentView('home');
+          window.history.pushState({}, '', '/');
+        } else {
+          setCurrentView('bookings');
+        }
       } else if (path === '/profile') {
         setCurrentView('profile');
       } else if (path === '/facility-owner') {
         console.log('Setting current view to facility-owner');
         setCurrentView('facility-owner');
+      } else if (path === '/admin') {
+        console.log('Setting current view to admin');
+        setCurrentView('admin');
       } else if (path === '/') {
         setCurrentView('home');
       }
@@ -107,12 +116,21 @@ function AppContent() {
       } else if (hash === 'venues') {
         setCurrentView('venues');
       } else if (hash === 'bookings') {
-        setCurrentView('bookings');
+        // Redirect admin users to home page, others can access bookings
+        if (user?.role === 'admin') {
+          setCurrentView('home');
+          window.history.pushState({}, '', '/');
+        } else {
+          setCurrentView('bookings');
+        }
       } else if (hash === 'profile') {
         setCurrentView('profile');
       } else if (hash === 'facility-owner') {
         console.log('Setting current view to facility-owner');
         setCurrentView('facility-owner');
+      } else if (hash === 'admin') {
+        console.log('Setting current view to admin');
+        setCurrentView('admin');
       }
     };
 
@@ -213,8 +231,13 @@ function AppContent() {
           />
         ) : null;
       case 'bookings':
-        // Show different content for facility owners vs regular users
-        if (user?.role === 'facility_owner') {
+        // Redirect admins to home page, show different content for facility owners vs regular users
+        if (user?.role === 'admin') {
+          // Redirect admin users to home page
+          setCurrentView('home');
+          window.history.pushState({}, '', '/');
+          return null;
+        } else if (user?.role === 'facility_owner') {
           return (
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-8">All Bookings</h1>
@@ -267,6 +290,8 @@ function AppContent() {
           );
         }
         return <FacilityOwnerDashboard />;
+      case 'admin':
+        return <AdminDashboard />;
       default:
         return null;
     }
@@ -317,15 +342,13 @@ function AppContent() {
 }
 
 function App() {
+  // Place Router outside AuthProvider so AuthContext (which uses useNavigate) is within Router context
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/admin/*" element={<AdminRoutes />} />
-          <Route path="/*" element={<AppContent />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 

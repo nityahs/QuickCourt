@@ -24,3 +24,31 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Floating animation for background elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Map container styles */
+.map-container {
+  transition: all 0.3s ease;
+}
+
+.map-container:hover {
+  transform: scale(1.02);
+}
+
+/* Shadow utility for sporty elements */
+.shadow-sporty {
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
+}

@@ -21,7 +21,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, currentPage }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
   };
 
   const menuItems = [

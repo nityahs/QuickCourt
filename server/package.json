@@ -6,18 +6,22 @@
   "scripts": {
     "dev": "nodemon server.js",
     "seed": "node src/seed/seed.js",
-    "seed:admin": "node src/seed/admin-user.js"
+    "seed:admin": "node src/seed/admin-user.js",
+    "seed:facilities": "node src/seed/seed-facilities.js"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.20",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
+    "leaflet": "^1.9.4",
     "mongoose": "^8.5.0",
     "morgan": "^1.10.0",
     "nodemailer": "^7.0.5",
+    "react-leaflet": "^4.2.1",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
