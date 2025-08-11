@@ -30,7 +30,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue, onViewDetails }) => {
         <div className="absolute top-4 right-4 bg-white/90 px-2 py-1 rounded-md shadow-sm">
           <div className="flex items-center space-x-1">
             <Star className="h-4 w-4 text-yellow-400 fill-current" />
-            <span className="text-sm font-medium">{venue.rating}</span>
+            <span className="text-sm font-medium">{venue.rating.toFixed(2)}</span>
             <span className="text-sm text-gray-500">({venue.reviewCount})</span>
           </div>
         </div>

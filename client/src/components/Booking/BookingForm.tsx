@@ -151,7 +151,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
                 <span>{venue.address}</span>
                 <div className="flex items-center ml-4">
                   <span className="text-yellow-400">★</span>
-                  <span className="ml-1">{venue.rating} ({venue.reviewCount})</span>
+                  <span className="ml-1">{venue.rating.toFixed(2)} ({venue.reviewCount})</span>
                 </div>
               </div>
             </div>

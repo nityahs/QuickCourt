@@ -113,7 +113,7 @@ const FacilitiesMap: React.FC<FacilitiesMapProps> = ({
               <p class="text-sm text-gray-600 mb-2">📍 ${facility.address}</p>
               <p class="text-sm text-blue-600 mb-2">🏃 ${facility.sports.join(', ')}</p>
               <p class="text-sm text-green-600 mb-2">💰 ₹${facility.startingPricePerHour}/hour</p>
-              <p class="text-sm text-yellow-600">⭐ ${facility.ratingAvg.toFixed(1)} rating</p>
+              <p class="text-sm text-yellow-600">⭐ ${facility.ratingAvg.toFixed(2)} rating</p>
             </div>
           `);
 
