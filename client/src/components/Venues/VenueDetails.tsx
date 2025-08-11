@@ -140,7 +140,7 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
             <span>{venue.address}</span>
             <div className="flex items-center ml-4">
               <Star size={16} className="text-yellow-400 fill-current mr-1" />
-              <span className="font-medium">{venue.rating}</span>
+              <span className="font-medium">{venue.rating.toFixed(2)}</span>
               <span className="ml-1">({venue.reviewCount})</span>
             </div>
           </div>
