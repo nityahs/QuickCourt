@@ -266,6 +266,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={timeSlots.length === 0}
                   >
                     {timeSlots.map(time => (
                       <option key={time} value={time}>{time}</option>
@@ -321,7 +322,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
               </div>
 
               {bookingError && (
-                <div className="text-red-600 text-sm mb-2">{bookingError}</div>
+                <div className="text-red-600 text-sm mb-2 p-3 bg-red-50 rounded-md">
+                  {bookingError}
+                </div>
               )}
 
               <button
