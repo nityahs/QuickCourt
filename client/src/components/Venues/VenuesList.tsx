@@ -31,7 +31,7 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [limit] = useState(9);
+  const [limit] = useState(6); // Changed from 9 to 6 entries per page
   const [total, setTotal] = useState(0);
 
   // Keep URL in sync when filters change
@@ -128,9 +128,19 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
     setMinRating('');
   };
 
+  // Calculate total pages based on total venues and limit (6 per page)
   const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = Math.max(1, page - 2);
-  const end = Math.min(totalPages, start + 4);
+  
+  // Determine which page numbers to show (show 5 pages at most)
+  let start = Math.max(1, page - 2);
+  let end = Math.min(totalPages, start + 4);
+  
+  // Adjust start if end is at max to show 5 pages when possible
+  if (end === totalPages && totalPages > 4) {
+    start = Math.max(1, totalPages - 4);
+  }
+  
+  // Generate array of page numbers to display
   const pageNumbers = Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
   return (
@@ -249,38 +259,77 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
             ))}
           </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center mt-8">
-            <nav className="flex items-center space-x-2">
-              <button
-                className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                disabled={page === 1}
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-              >
-                Previous
-              </button>
-              {pageNumbers.map(pn => (
+          {/* Pagination - Shows when there are more than 6 entries */}
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-8">
+              <nav className="flex items-center space-x-2">
                 <button
-                  key={pn}
-                  className={`px-3 py-2 rounded-md ${
-                    pn === page
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                  onClick={() => setPage(pn)}
+                  className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 border rounded-md"
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  aria-label="Go to previous page"
                 >
-                  {pn}
+                  Previous
                 </button>
-              ))}
-              <button
-                className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50"
-                disabled={page === totalPages}
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </button>
-            </nav>
-          </div>
+                
+                {/* First page if not in view */}
+                {start > 1 && (
+                  <>
+                    <button
+                      className="px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 border"
+                      onClick={() => setPage(1)}
+                    >
+                      1
+                    </button>
+                    {start > 2 && (
+                      <span className="px-2 py-1 text-gray-500">...</span>
+                    )}
+                  </>
+                )}
+                
+                {/* Page numbers */}
+                {pageNumbers.map(pn => (
+                  <button
+                    key={pn}
+                    className={`px-3 py-2 rounded-md ${
+                      pn === page
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-700 hover:bg-gray-100 border'
+                    }`}
+                    onClick={() => setPage(pn)}
+                    aria-label={`Page ${pn}`}
+                    aria-current={pn === page ? 'page' : undefined}
+                  >
+                    {pn}
+                  </button>
+                ))}
+                
+                {/* Last page if not in view */}
+                {end < totalPages && (
+                  <>
+                    {end < totalPages - 1 && (
+                      <span className="px-2 py-1 text-gray-500">...</span>
+                    )}
+                    <button
+                      className="px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100 border"
+                      onClick={() => setPage(totalPages)}
+                    >
+                      {totalPages}
+                    </button>
+                  </>
+                )}
+                
+                <button
+                  className="px-3 py-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 border rounded-md"
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  aria-label="Go to next page"
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          )}
         </div>
       </div>
     </div>
