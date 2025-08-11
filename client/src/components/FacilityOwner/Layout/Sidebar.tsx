@@ -55,14 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={onToggle}
           />
         )}
@@ -73,7 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         initial={false}
         animate={{ x: isOpen ? 0 : '-100%' }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl lg:shadow-none`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl`}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -88,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </div>
             <button
               onClick={onToggle}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>

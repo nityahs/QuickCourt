@@ -164,7 +164,7 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ activities }) => {
                   {formatTimeAgo(activity.createdAt)}
                 </div>
                 <div className="text-lg font-semibold text-green-600">
-                  ${activity.price}
+                  ₹{activity.price}
                 </div>
               </div>
 
