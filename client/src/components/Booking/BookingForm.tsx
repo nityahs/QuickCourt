@@ -109,19 +109,28 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
     if (!selectedCourt || !selectedDate) return;
     (async () => {
       try {
-  const { data } = await http.get(`/slots/${selectedCourt}`, { params: { date: selectedDate } });
+        const { data } = await http.get(`/slots/${selectedCourt}`, { params: { date: selectedDate } });
         if (!ignore) {
           const avail = (data || []).filter((s:any) => !s.isBlocked && !s.isBooked);
           // map available slots if needed in future
           const times = Array.from(new Set(avail.map((s:any) => s.start))) as string[];
           times.sort();
-          setTimeSlots(times as string[]);
-          if (times.length) setSelectedTime(times[0] as string);
+          setTimeSlots(times);
+          // Only set selected time if there are available slots and current selection is not in the list
+          if (times.length && !times.includes(selectedTime)) {
+            setSelectedTime(times[0]);
+          } else if (times.length === 0) {
+            // Clear selected time if no slots available
+            setSelectedTime('');
+          }
         }
-      } catch {}
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+        setTimeSlots([]);
+      }
     })();
     return () => { ignore = true; };
-  }, [selectedCourt, selectedDate]);
+  }, [selectedCourt, selectedDate, selectedTime]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -195,12 +204,20 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
                     value={selectedTime}
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={timeSlots.length === 0}
                   >
-                    {timeSlots.map(time => (
-                      <option key={time} value={time}>{time}</option>
-                    ))}
+                    {timeSlots.length === 0 ? (
+                      <option value="">No available times</option>
+                    ) : (
+                      timeSlots.map(time => (
+                        <option key={time} value={time}>{time}</option>
+                      ))
+                    )}
                   </select>
                 </div>
+                {timeSlots.length === 0 && (
+                  <p className="mt-1 text-sm text-red-600">No available times for selected date and court</p>
+                )}
               </div>
 
               {/* Duration */}
@@ -234,11 +251,19 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
                   value={selectedCourt}
                   onChange={(e) => setSelectedCourt(e.target.value)}
                   className="block w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={courts.length === 0}
                 >
-                  {courts.map(court => (
-                    <option key={court._id} value={court._id}>{court.name}</option>
-                  ))}
+                  {courts.length === 0 ? (
+                    <option value="">No courts available</option>
+                  ) : (
+                    courts.map(court => (
+                      <option key={court._id} value={court._id}>{court.name}</option>
+                    ))
+                  )}
                 </select>
+                {courts.length === 0 && (
+                  <p className="mt-1 text-sm text-red-600">No courts available for this venue</p>
+                )}
               </div>
 
               {bookingError && (
@@ -246,7 +271,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
               )}
               <button
                 onClick={handleBooking}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !selectedCourt || !selectedTime || timeSlots.length === 0}
                 className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
               >
                 <CreditCard className="mr-2 h-5 w-5" />
