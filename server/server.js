@@ -28,6 +28,7 @@ app.use(helmet());
 const origins = [
   process.env.CLIENT_ORIGIN,
   'http://localhost:5173',
+  'http://localhost:5174',
 ];
 app.use(cors({
   origin: (origin, cb) => {

@@ -45,6 +45,9 @@ export const authAPI = {
         Authorization: `Bearer ${token}`
       }
     }),
+    
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // Add a request interceptor to include the token in all requests
