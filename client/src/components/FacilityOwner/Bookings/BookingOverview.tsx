@@ -327,7 +327,7 @@ const BookingOverview: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <DollarSign className="w-4 h-4 text-gray-400" />
                         <span className="text-sm font-medium text-gray-900">
-                          ${booking.price}
+                          ₹{booking.price}
                         </span>
                       </div>
                     </td>

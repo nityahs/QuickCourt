@@ -12,7 +12,7 @@ const FacilityOwnerLayout: React.FC<FacilityOwnerLayoutProps> = ({ children }) =
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-white">
-      <div className="flex h-screen">
+      <div className="relative">
         {/* Sidebar */}
         <Sidebar 
           isOpen={sidebarOpen} 
@@ -20,13 +20,13 @@ const FacilityOwnerLayout: React.FC<FacilityOwnerLayoutProps> = ({ children }) =
         />
         
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="w-full">
           <FacilityHeader 
             onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
           />
           
           {/* Main Content Area */}
-          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50">
+          <main className="overflow-x-hidden overflow-y-auto bg-gray-50 min-h-screen">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
               <AnimatePresence mode="wait">
                 <motion.div

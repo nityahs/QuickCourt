@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, 
-  DollarSign, 
+  Wallet, 
   Users, 
   TrendingUp,
   Building2,
@@ -33,8 +33,8 @@ const KPICards: React.FC<KPICardsProps> = ({ kpis }) => {
     },
     {
       title: 'Total Earnings',
-      value: `$${kpis.totalEarnings.toLocaleString()}`,
-      icon: DollarSign,
+      value: `₹${kpis.totalEarnings.toLocaleString()}`,
+      icon: Wallet,
       color: 'green'
     },
     {

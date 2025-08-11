@@ -105,7 +105,7 @@ const ChartsSection: React.FC<ChartsSectionProps> = ({ charts }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
+              <Tooltip formatter={(value) => [`₹${value}`, 'Revenue']} />
               <Legend />
               <Line 
                 type="monotone" 
