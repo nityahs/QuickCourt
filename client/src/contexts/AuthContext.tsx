@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         id: userData._id,
         email: userData.email,
         fullName: userData.name,
-        role: userData.role as User['role'],
+        role: userData.role === 'owner' ? 'facility_owner' : userData.role as User['role'],
         isVerified: userData.otpVerified,
         avatar: userData.avatar
       };
@@ -122,7 +122,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         userData.fullName!, 
         userData.email!, 
         userData.password, 
-        userData.role || 'user'
+        userData.role === 'facility_owner' ? 'owner' : (userData.role || 'user')
       );
       
       // Store the userId for OTP verification
@@ -188,7 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         id: userData._id,
         email: userData.email,
         fullName: userData.name,
-        role: userData.role as User['role'],
+        role: userData.role === 'owner' ? 'facility_owner' : userData.role as User['role'],
         isVerified: true,
         avatar: userData.avatar
       };
