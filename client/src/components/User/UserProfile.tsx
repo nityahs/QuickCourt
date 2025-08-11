@@ -121,7 +121,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
         return;
       }
       
-      // Validate file size (max 2MB for better API performance)
       if (file.size > 2 * 1024 * 1024) {
         setError('Image size must be less than 2MB');
         return;
