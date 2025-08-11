@@ -75,7 +75,7 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
     }
   };
 
-  const canReview = user && (user.role === 'user' || user.role === 'player');
+  const canReview = user && (user.role === 'facility_owner' || user.role === 'admin');
 
   const submitReview = async () => {
     if (!canReview) return;
