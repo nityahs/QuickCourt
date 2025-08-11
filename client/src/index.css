@@ -1,3 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Sporty subtle background grid */
+body {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(16,185,129,0.10), transparent 40%),
+    radial-gradient(circle at 80% 30%, rgba(59,130,246,0.10), transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+}
+
+/* Glass effect helper */
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(90deg, #10b981, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

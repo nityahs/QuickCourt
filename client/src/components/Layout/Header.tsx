@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, X, User, LogOut, MapPin, Search } from 'lucide-react';
+import { Menu, X, User, LogOut, Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
@@ -12,57 +12,46 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <header className="backdrop-blur bg-white/70 border-b border-white/60 sticky top-0 z-50">
+      <div className="relative">
+        <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-emerald-400/50 via-sky-400/50 to-blue-400/50" />
+      </div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo and Mobile Menu */}
           <div className="flex items-center">
             <button
               onClick={onMenuToggle}
-              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-white/60"
             >
               {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
             </button>
             <div className="flex-shrink-0 ml-2 md:ml-0">
-              <h1 className="text-2xl font-bold text-gray-900">QUICKCOURT</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight"><span className="text-gray-900">QUICK</span><span className="text-gradient">COURT</span></h1>
             </div>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            <a 
-              href="/" 
-              className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, '', '/');
-                window.dispatchEvent(new Event('popstate'));
-              }}
-            >
-              Home
-            </a>
-            <a 
-              href="/venues" 
-              className="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, '', '/venues');
-                window.dispatchEvent(new Event('popstate'));
-              }}
-            >
-              Venues
-            </a>
-            <a 
-              href="/bookings" 
-              className="text-gray-600 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-              onClick={(e) => {
-                e.preventDefault();
-                window.history.pushState({}, '', '/bookings');
-                window.dispatchEvent(new Event('popstate'));
-              }}
-            >
-              My Bookings
-            </a>
+          <nav className="hidden md:flex items-center space-x-2">
+            {[
+              { label: 'Home', path: '/' },
+              { label: 'Venues', path: '/venues' },
+              { label: 'My Bookings', path: '/bookings' },
+            ].map((item) => (
+              <a
+                key={item.label}
+                href={item.path}
+                className="group relative px-3 py-2 text-sm font-medium text-gray-700 hover:text-emerald-600"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.history.pushState({}, '', item.path);
+                  window.dispatchEvent(new Event('popstate'));
+                }}
+              >
+                {item.label}
+                <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 bg-gradient-to-r from-emerald-400 to-sky-400 scale-x-0 group-hover:scale-x-100 transition-transform" />
+              </a>
+            ))}
           </nav>
 
           {/* Search Bar - Desktop */}
@@ -74,7 +63,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
               <input
                 type="text"
                 placeholder="Search venues..."
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -141,7 +130,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
               <div className="flex items-center space-x-2">
                 <a
                   href="/login"
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
                   onClick={(e) => {
                     e.preventDefault();
                     window.history.pushState({}, '', '/login');
@@ -152,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
                 </a>
                 <a
                   href="/signup"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-sporty"
                   onClick={(e) => {
                     e.preventDefault();
                     window.history.pushState({}, '', '/signup');
@@ -176,7 +165,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
           <input
             type="text"
             placeholder="Search venues..."
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
       </div>

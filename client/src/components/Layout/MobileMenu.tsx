@@ -69,8 +69,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="md:hidden">
-      <div className="fixed inset-0 z-40 bg-black bg-opacity-25" onClick={onClose} />
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl">
+      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
+      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl animate-slide-in-left">
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between p-4 border-b">
             <h2 className="text-lg font-semibold text-gray-900">Menu</h2>
