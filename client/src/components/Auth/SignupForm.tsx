@@ -55,14 +55,9 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
     }
 
     try {
-      // Sign up the user
-  await signup(formData);
-      
-  // Simulate slight delay
-  await new Promise(resolve => setTimeout(resolve, 300));
-      
-  // Navigate to OTP verification using hash so App's hash listener reacts immediately
-  window.location.hash = 'verify-otp';
+      // Sign up the user - the AuthContext will automatically show the OTP modal
+      await signup(formData);
+      // No need for navigation - AuthContext handles showing the OTP modal
     } catch (err: any) {
        // Display the error message from the server if available
        if (err.response && err.response.data) {
