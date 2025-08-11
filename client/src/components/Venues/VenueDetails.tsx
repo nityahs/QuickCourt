@@ -75,23 +75,24 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
     }
   };
 
-  const canReview = user && (user.role === 'facility_owner' || user.role === 'admin');
+  const canReview = user?.role === 'user';
+  const [submitError, setSubmitError] = useState('');
 
   const submitReview = async () => {
     if (!canReview) return;
     if (!newReview.comment.trim()) return;
     try {
+      setSubmitError('');
       setSubmitting(true);
       await http.post('/reviews', {
         facilityId: venue.id,
         rating: newReview.rating,
-        text: newReview.comment,
+        comment: newReview.comment,
       });
-      // refresh first page
       await loadMore(1);
       setNewReview({ rating: 5, comment: '' });
-    } catch (e) {
-      // noop
+    } catch (e: any) {
+      setSubmitError(e?.response?.data?.error || 'Failed to submit review');
     } finally {
       setSubmitting(false);
     }
@@ -240,6 +241,7 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
                     {submitting ? 'Submitting…' : 'Post Review'}
                   </button>
                 </div>
+                {submitError && <div className="text-red-600 text-xs mt-2">{submitError}</div>}
               </div>
             )}
             <div className="space-y-4">

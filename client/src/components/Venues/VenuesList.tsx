@@ -9,8 +9,11 @@ interface VenuesListProps {
 }
 
 const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
+  const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const initialSport = qs.get('sport') || '';
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSport, setSelectedSport] = useState('');
+  const [selectedSport, setSelectedSport] = useState(initialSport);
   const [priceRange, setPriceRange] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
@@ -20,50 +23,59 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   const [limit] = useState(9);
   const [total, setTotal] = useState(0);
 
-    useEffect(() => {
-      setLoading(true);
-      const params: any = { page, limit };
-      if (selectedSport) params.sport = selectedSport.toLowerCase();
-      if (searchTerm.trim()) params.q = searchTerm.trim();
-      if (priceRange) {
-        const [minStr, maxStr] = priceRange.split('-');
-        const minPrice = parseInt(minStr) || 0;
-        const maxPrice = priceRange.endsWith('+') ? undefined : parseInt(maxStr);
-        params.minPrice = minPrice;
-        if (maxPrice !== undefined && !Number.isNaN(maxPrice)) params.maxPrice = maxPrice;
-      }
+  // Keep URL in sync when selectedSport changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (selectedSport) params.set('sport', selectedSport);
+    else params.delete('sport');
+    const newUrl = `${window.location.pathname}?${params.toString()}`.replace(/\?$/, '');
+    window.history.replaceState({}, '', newUrl);
+  }, [selectedSport]);
 
-      facilitiesAPI.getAll(params)
-        .then((res: any) => {
-          // Map backend Facility to Venue type if needed
-          const PLACEHOLDER = 'https://via.placeholder.com/800x450?text=No+Image';
-          setVenues(res.data.data.map((f: any) => ({
-            id: f._id,
-            name: f.name,
-            description: f.description,
-            address: f.address,
-            location: f.address,
-            sportTypes: f.sports,
-            startingPrice: f.startingPricePerHour,
-            rating: f.ratingAvg,
-            reviewCount: f.ratingCount,
-            images: Array.isArray(f.photos) && f.photos.length > 0
-              ? f.photos.filter((p: any) => typeof p === 'string' && p.length > 0)
-              : [PLACEHOLDER],
-            amenities: f.amenities,
-            operatingHours: { start: '06:00', end: '23:00' }, // Placeholder, update if available
-            courts: [], // Placeholder, update if available
-            ownerId: f.ownerId,
-            isApproved: f.status === 'approved',
-          })));
-          setTotal(res.data.total || 0);
-          setLoading(false);
-        })
-        .catch(() => {
-          setError('Failed to load venues');
-          setLoading(false);
-        });
-    }, [page, selectedSport, priceRange, searchTerm]);
+  useEffect(() => {
+    setLoading(true);
+    const params: any = { page, limit };
+    if (selectedSport) params.sport = selectedSport;
+    if (searchTerm.trim()) params.q = searchTerm.trim();
+    if (priceRange) {
+      const [minStr, maxStr] = priceRange.split('-');
+      const minPrice = parseInt(minStr) || 0;
+      const maxPrice = priceRange.endsWith('+') ? undefined : parseInt(maxStr);
+      params.minPrice = minPrice;
+      if (maxPrice !== undefined && !Number.isNaN(maxPrice)) params.maxPrice = maxPrice;
+    }
+
+    facilitiesAPI.getAll(params)
+      .then((res: any) => {
+        // Map backend Facility to Venue type if needed
+        const PLACEHOLDER = 'https://via.placeholder.com/800x450?text=No+Image';
+        setVenues(res.data.data.map((f: any) => ({
+          id: f._id,
+          name: f.name,
+          description: f.description,
+          address: f.address,
+          location: f.address,
+          sportTypes: f.sports,
+          startingPrice: f.startingPricePerHour,
+          rating: f.ratingAvg,
+          reviewCount: f.ratingCount,
+          images: Array.isArray(f.photos) && f.photos.length > 0
+            ? f.photos.filter((p: any) => typeof p === 'string' && p.length > 0)
+            : [PLACEHOLDER],
+          amenities: f.amenities,
+          operatingHours: { start: '06:00', end: '23:00' },
+          courts: [],
+          ownerId: f.ownerId,
+          isApproved: f.status === 'approved',
+        })));
+        setTotal(res.data.total || 0);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load venues');
+        setLoading(false);
+      });
+  }, [page, selectedSport, priceRange, searchTerm]);
 
   // Reset to first page when filters change
   useEffect(() => { setPage(1); }, [selectedSport, priceRange, searchTerm]);
@@ -187,10 +199,9 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
 
               <button 
                 onClick={() => {
-                  // Reset to first page when applying filters
-                  // This would be connected to pagination state in a real app
+                  // placeholder Apply Filters button
                 }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-md text-sm font-medium"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-sporty"
               >
                 Apply Filters
               </button>
