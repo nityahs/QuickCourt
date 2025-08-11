@@ -24,8 +24,21 @@ const server = http.createServer(app);
 initSocket(server);
 
 app.use(helmet());
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
-app.use(cors({ origin: clientOrigin, credentials: true }));
+const origins = [
+  process.env.CLIENT_ORIGIN,
+  'http://localhost:5173',
+];
+app.use(cors({
+  origin: (origin, cb) => {
+    // allow requests with no origin (like mobile apps, curl)
+    if (!origin) return cb(null, true);
+    if (origins.filter(Boolean).includes(origin)) return cb(null, true);
+    // allow LAN IPs during dev
+    if (/^http:\/\/\d+\.\d+\.\d+\.\d+(:\d+)?$/.test(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
@@ -49,6 +62,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 connectDB().then(() => {
-  server.listen(PORT, () => console.log(`API running on :${PORT}`));
+  server.listen(PORT, HOST, () => console.log(`API running on ${HOST}:${PORT}`));
 });
