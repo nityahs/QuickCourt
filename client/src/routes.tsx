@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { facilitiesAPI } from './services/facilities';
@@ -13,6 +13,34 @@ import UserProfile from './components/User/UserProfile';
 import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import { Venue } from './types';
+
+// Transform server facility data to frontend venue format
+const transformFacilityToVenue = (facility: any): Venue => {
+  return {
+    id: facility._id,
+    name: facility.name || '',
+    description: facility.description || '',
+    address: facility.address || '',
+    location: facility.address || '', // Use address as location fallback
+    geolocation: facility.geolocation ? {
+      lat: facility.geolocation.lat,
+      lng: facility.geolocation.lng
+    } : undefined,
+    sportTypes: facility.sports || [],
+    startingPrice: facility.startingPricePerHour || 0,
+    rating: facility.ratingAvg || 0,
+    reviewCount: facility.ratingCount || 0,
+    images: facility.photos || [],
+    amenities: facility.amenities || [],
+    operatingHours: {
+      start: '09:00',
+      end: '21:00'
+    },
+    courts: [], // This would need to be fetched separately or included in the facility model
+    ownerId: facility.ownerId || '',
+    isApproved: facility.status === 'approved'
+  };
+};
 
 // Home Page Component
 const HomePage = () => {
@@ -154,10 +182,9 @@ const VenueDetailsPage = () => {
   };
 
   const handleBookVenue = (venueToBook: Venue) => {
-    // For now, just log the booking attempt
-    console.log('Would book venue:', venueToBook);
-    // In a real implementation, this would navigate to a booking page
-    // navigate(`/booking/${venueToBook.id}`);
+    // Navigate to booking page
+    console.log('Navigating to booking for venue:', venueToBook.id);
+    navigate(`/booking/${venueToBook.id}`);
   };
 
   if (loading) {
@@ -201,46 +228,180 @@ const ProfilePage = () => {
   );
 };
 
-// Facility Owner Page Component
-const FacilityOwnerPage = () => {
-  const { user } = useAuth();
-  
-  if (!user || user.role !== 'facility_owner') {
+// Main AppRoutes Component - Maps to all server API endpoints
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/venues" element={<VenuesPage />} />
+      <Route path="/venue/:id" element={<VenueDetailsPage />} />
+      
+      {/* Auth-required Routes */}
+      <Route path="/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />
+      <Route path="/booking/:venueId" element={<ProtectedRoute><BookingPage /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      
+      {/* Role-specific Routes */}
+      <Route path="/facility-owner/*" element={<ProtectedRoute requiredRole="facility_owner"><FacilityOwnerRoutes /></ProtectedRoute>} />
+      <Route path="/admin/*" element={<ProtectedRoute requiredRole="admin"><AdminRoutes /></ProtectedRoute>} />
+      
+      {/* Catch-all redirect */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+// Protected Route Wrapper
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRole?: 'user' | 'facility_owner' | 'admin';
+}
+
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    // Redirect to login
+    window.location.hash = 'login';
+    return <Navigate to="/" replace />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Access Denied</h1>
           <p className="text-lg text-gray-600 mb-6">
-            You need to be logged in as a facility owner to access this dashboard.
+            You don't have permission to access this page.
           </p>
           <button
-            onClick={() => window.location.hash = 'login'}
+            onClick={() => navigate('/')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Login as Facility Owner
+            Go Home
           </button>
         </div>
       </div>
     );
   }
-  
-  return <FacilityOwnerDashboard />;
+
+  return <>{children}</>;
 };
 
-// Main AppRoutes Component
-const AppRoutes = () => {
+// Facility Owner Sub-Routes (maps to facility owner API endpoints)
+const FacilityOwnerRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/venues" element={<VenuesPage />} />
-      <Route path="/venue/:id" element={<VenueDetailsPage />} />
-      <Route path="/bookings" element={<BookingsPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/facility-owner" element={<FacilityOwnerPage />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/" element={<FacilityOwnerDashboard />} />
+      <Route path="/facilities" element={<OwnerFacilitiesPage />} />
+      <Route path="/facilities/new" element={<CreateFacilityPage />} />
+      <Route path="/facilities/:id" element={<EditFacilityPage />} />
+      <Route path="/bookings" element={<OwnerBookingsPage />} />
+      <Route path="/courts" element={<OwnerCourtsPage />} />
+      <Route path="/courts/new" element={<CreateCourtPage />} />
+      <Route path="/courts/:id" element={<EditCourtPage />} />
     </Routes>
   );
 };
+
+// Admin Sub-Routes (maps to admin API endpoints)
+const AdminRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<AdminDashboard />} />
+      <Route path="/facilities" element={<AdminFacilitiesPage />} />
+      <Route path="/facilities/pending" element={<PendingFacilitiesPage />} />
+      <Route path="/users" element={<UserManagementPage />} />
+      <Route path="/bookings" element={<AdminBookingsPage />} />
+      <Route path="/stats" element={<AdminStatsPage />} />
+    </Routes>
+  );
+};
+
+// Booking Page Component (maps to /api/bookings endpoints)
+const BookingPage = () => {
+  const { venueId } = useParams<{ venueId: string }>();
+  const navigate = useNavigate();
+  const [venue, setVenue] = useState<Venue | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchVenue = async () => {
+      if (!venueId) return;
+      try {
+        const response = await facilitiesAPI.getById(venueId);
+        const transformedVenue = transformFacilityToVenue(response.data);
+        setVenue(transformedVenue);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching venue for booking:', error);
+        setLoading(false);
+      }
+    };
+    fetchVenue();
+  }, [venueId]);
+
+  const handleBookingComplete = () => {
+    navigate('/bookings');
+  };
+
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <p className="text-lg text-gray-600">Loading booking form...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!venue) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Venue Not Found</h1>
+          <button
+            onClick={() => navigate('/venues')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Venues
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <BookingForm 
+      venue={venue} 
+      onBack={() => navigate(`/venue/${venue.id}`)}
+      onBookingComplete={handleBookingComplete}
+    />
+  );
+};
+
+// Placeholder components for future implementation
+const OwnerFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Facilities - Coming Soon</h1></div>;
+const CreateFacilityPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Create Facility - Coming Soon</h1></div>;
+const EditFacilityPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Edit Facility - Coming Soon</h1></div>;
+const OwnerBookingsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Bookings - Coming Soon</h1></div>;
+const OwnerCourtsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Courts - Coming Soon</h1></div>;
+const CreateCourtPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Create Court - Coming Soon</h1></div>;
+const EditCourtPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Edit Court - Coming Soon</h1></div>;
+const AdminFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Facilities - Coming Soon</h1></div>;
+const PendingFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Pending Facilities - Coming Soon</h1></div>;
+const UserManagementPage = () => <div className="p-8"><h1 className="text-2xl font-bold">User Management - Coming Soon</h1></div>;
+const AdminBookingsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Bookings - Coming Soon</h1></div>;
+const AdminStatsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Stats - Coming Soon</h1></div>;
 
 export default AppRoutes;
