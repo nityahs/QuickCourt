@@ -74,7 +74,7 @@ const PopularSports: React.FC = () => {
   }, [facilities]);
 
   const handleClickSport = (sport: string) => {
-    const params = new URLSearchParams({ sport });
+    const params = new URLSearchParams({ sport: sport.toLowerCase() });
     window.history.pushState({}, '', `/venues?${params.toString()}`);
     window.dispatchEvent(new Event('popstate'));
   };

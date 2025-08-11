@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Layout/Header';
 import MobileMenu from './components/Layout/MobileMenu';
@@ -11,6 +12,7 @@ import VenueDetails from './components/Venues/VenueDetails';
 import BookingForm from './components/Booking/BookingForm';
 import UserProfile from './components/User/UserProfile';
 import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
+import AdminRoutes from './admin/components/AdminRoutes';
 import { Venue } from './types';
 
 type AppView = 'home' | 'venues' | 'venue-details' | 'booking' | 'bookings' | 'profile' | 'verify-otp' | 'facility-owner';
@@ -317,7 +319,12 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <Routes>
+          <Route path="/admin/*" element={<AdminRoutes />} />
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }

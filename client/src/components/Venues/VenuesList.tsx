@@ -8,13 +8,24 @@ interface VenuesListProps {
   onViewVenue: (venue: Venue) => void;
 }
 
+const toTitle = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
 const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const initialSport = qs.get('sport') || '';
+  const initialSport = (qs.get('sport') || '').toLowerCase();
+  const initialSearch = qs.get('q') || '';
+  const initialMinPrice = qs.get('minPrice') || '';
+  const initialMaxPrice = qs.get('maxPrice') || '';
+  const initialRating = qs.get('rating') || '';
 
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [selectedSport, setSelectedSport] = useState(initialSport);
-  const [priceRange, setPriceRange] = useState('');
+  const [priceRange, setPriceRange] = useState(
+    initialMinPrice || initialMaxPrice
+      ? `${initialMinPrice || 0}-${initialMaxPrice || ''}`.replace(/-$/, '+')
+      : ''
+  );
+  const [minRating, setMinRating] = useState<number | ''>(initialRating ? Number(initialRating) : '');
   const [showFilters, setShowFilters] = useState(false);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,19 +34,33 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   const [limit] = useState(9);
   const [total, setTotal] = useState(0);
 
-  // Keep URL in sync when selectedSport changes
+  // Keep URL in sync when filters change
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (selectedSport) params.set('sport', selectedSport);
-    else params.delete('sport');
+    if (selectedSport) params.set('sport', selectedSport); else params.delete('sport');
+    if (searchTerm.trim()) params.set('q', searchTerm.trim()); else params.delete('q');
+
+    if (priceRange) {
+      const [minStr, maxStr] = priceRange.split('-');
+      const minPrice = parseInt(minStr) || 0;
+      const maxPrice = priceRange.endsWith('+') ? '' : String(parseInt(maxStr || ''));
+      params.set('minPrice', String(minPrice));
+      if (maxPrice) params.set('maxPrice', maxPrice); else params.delete('maxPrice');
+    } else {
+      params.delete('minPrice');
+      params.delete('maxPrice');
+    }
+
+    if (minRating) params.set('rating', String(minRating)); else params.delete('rating');
+
     const newUrl = `${window.location.pathname}?${params.toString()}`.replace(/\?$/, '');
     window.history.replaceState({}, '', newUrl);
-  }, [selectedSport]);
+  }, [selectedSport, searchTerm, priceRange, minRating]);
 
   useEffect(() => {
     setLoading(true);
     const params: any = { page, limit };
-    if (selectedSport) params.sport = selectedSport;
+    if (selectedSport) params.sport = selectedSport; // normalized lowercase
     if (searchTerm.trim()) params.q = searchTerm.trim();
     if (priceRange) {
       const [minStr, maxStr] = priceRange.split('-');
@@ -44,10 +69,10 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
       params.minPrice = minPrice;
       if (maxPrice !== undefined && !Number.isNaN(maxPrice)) params.maxPrice = maxPrice;
     }
+    if (minRating) params.rating = minRating;
 
     facilitiesAPI.getAll(params)
       .then((res: any) => {
-        // Map backend Facility to Venue type if needed
         const PLACEHOLDER = 'https://via.placeholder.com/800x450?text=No+Image';
         setVenues(res.data.data.map((f: any) => ({
           id: f._id,
@@ -75,18 +100,33 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
         setError('Failed to load venues');
         setLoading(false);
       });
-  }, [page, selectedSport, priceRange, searchTerm]);
+  }, [page, selectedSport, priceRange, searchTerm, minRating]);
 
   // Reset to first page when filters change
-  useEffect(() => { setPage(1); }, [selectedSport, priceRange, searchTerm]);
+  useEffect(() => { setPage(1); }, [selectedSport, priceRange, searchTerm, minRating]);
 
-  const sports = ['Badminton', 'Tennis', 'Football', 'Basketball', 'Cricket', 'Swimming'];
+  const sports = [
+    { label: 'All Sports', value: '' },
+    { label: 'Badminton', value: 'badminton' },
+    { label: 'Tennis', value: 'tennis' },
+    { label: 'Football', value: 'football' },
+    { label: 'Basketball', value: 'basketball' },
+    { label: 'Cricket', value: 'cricket' },
+    { label: 'Swimming', value: 'swimming' },
+  ];
   const priceRanges = [
     { label: 'Under ₹300', value: '0-300' },
     { label: '₹300 - ₹600', value: '300-600' },
     { label: '₹600 - ₹1000', value: '600-1000' },
     { label: 'Above ₹1000', value: '1000+' }
   ];
+
+  const clearAll = () => {
+    setSearchTerm('');
+    setSelectedSport('');
+    setPriceRange('');
+    setMinRating('');
+  };
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const start = Math.max(1, page - 2);
@@ -135,9 +175,8 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
                   onChange={(e) => setSelectedSport(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Sports</option>
                   {sports.map(sport => (
-                    <option key={sport} value={sport}>{sport}</option>
+                    <option key={sport.value || 'all'} value={sport.value}>{sport.label}</option>
                   ))}
                 </select>
               </div>
@@ -160,36 +199,16 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Choose venue type
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Indoor</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Outdoor</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating
+                  Minimum rating
                 </label>
                 <div className="space-y-2">
                   {[4, 3, 2, 1].map(rating => (
                     <label key={rating} className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" 
+                      <input
+                        type="checkbox"
+                        checked={minRating === rating}
+                        onChange={() => setMinRating(minRating === rating ? '' : rating)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="ml-2 text-sm text-gray-700">{rating} Stars & up</span>
                     </label>
@@ -197,14 +216,14 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
                 </div>
               </div>
 
-              <button 
-                onClick={() => {
-                  // placeholder Apply Filters button
-                }}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 px-4 rounded-md text-sm font-semibold shadow-sporty"
-              >
-                Apply Filters
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={clearAll}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 px-4 rounded-md text-sm font-medium"
+                >
+                  Clear Filters
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -215,7 +234,7 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
           {error && <p className="text-red-600">{error}</p>}
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              Sports Venues in Bangalore
+              Sports Venues {selectedSport ? `- ${toTitle(selectedSport)}` : ''}
             </h2>
             <p className="text-gray-600">{total} venues found</p>
           </div>

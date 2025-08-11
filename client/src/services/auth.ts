@@ -1,4 +1,3 @@
-import axios from 'axios';
 import api from './facilities';
 
 // Token storage key
@@ -33,8 +32,14 @@ export const authAPI = {
   login: (email: string, password: string) => 
     api.post<LoginResponse>('/auth/login', { email, password }),
   
-  signup: (name: string, email: string, password: string, role: string) => 
-    api.post<SignupResponse>('/auth/signup', { name, email, password, role }),
+  signup: (name: string, email: string, password: string, role: string) => {
+    console.log('[authAPI] Sending signup request:', { fullName: name, email, role, hasPassword: !!password });
+    return api.post<SignupResponse>('/auth/signup', { fullName: name, email, password, role })
+      .catch(error => {
+        console.error('[authAPI] Signup request failed:', error.response?.data);
+        throw error;
+      });
+  },
   
   verifyOtp: (userId: string, otp: string) => 
     api.post<VerifyOtpResponse>('/auth/verify-otp', { userId, otp }),
@@ -45,6 +50,9 @@ export const authAPI = {
         Authorization: `Bearer ${token}`
       }
     }),
+    
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // Add a request interceptor to include the token in all requests

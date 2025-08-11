@@ -4,8 +4,9 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-  "dev": "nodemon server.js",
-    "seed": "node src/seed/seed.js"
+    "dev": "nodemon server.js",
+    "seed": "node src/seed/seed.js",
+    "seed:admin": "node src/seed/admin-user.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
