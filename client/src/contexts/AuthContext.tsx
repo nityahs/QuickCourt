@@ -112,6 +112,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       // If banned, surface clear message and ensure no token remains
       const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      const code = error?.response?.data?.code;
+      const userId = error?.response?.data?.userId;
+      if (code === 'OTP_REQUIRED' && userId) {
+        // Store userId for verification and navigate to OTP screen
+        localStorage.setItem(USER_ID_KEY, String(userId));
+        // Use hash to trigger existing listeners that switch to OTP view and close modal
+        window.location.hash = 'verify-otp';
+      }
       if (serverMsg && /banned/i.test(serverMsg)) {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem('quickcourt_user');
@@ -137,24 +145,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { userId } = response.data;
       localStorage.setItem(USER_ID_KEY, userId);
       
-      // Create a temporary user object
-      const newUser: User = {
-        id: userId,
-        email: userData.email!,
-        fullName: userData.fullName!,
-        role: userData.role || 'user',
-        isVerified: false,
-        avatar: userData.avatar
-      };
-      
-      setUser(newUser);
-      localStorage.setItem('quickcourt_user', JSON.stringify(newUser));
-      
       // Store the email for verification purposes
       setVerificationEmail(userData.email!);
       
-      // Return the user for further processing
-      return newUser;
+      // Return minimal info; user will be set after OTP verification
+      return { id: userId, email: userData.email } as unknown as User;
     } catch (error) {
       console.error('Signup error:', error);
       throw new Error('Signup failed');
@@ -187,10 +182,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setIsLoading(true);
     try {
       // Get the userId from storage
-      const userId = localStorage.getItem(USER_ID_KEY);
+      let userId = localStorage.getItem(USER_ID_KEY);
       
       if (!userId) {
-        throw new Error('User ID not found');
+        // Try to recover from current user state
+        if (user?.id) {
+          userId = user.id;
+          localStorage.setItem(USER_ID_KEY, userId);
+        } else {
+          throw new Error('User ID not found');
+        }
       }
       
       // Call the verify OTP API
@@ -232,20 +233,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const resendOtp = async (email?: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // In a real implementation, we would have an API endpoint to resend OTP
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const targetEmail = email || verificationEmail || user?.email;
       if (!targetEmail) {
         throw new Error('No email provided for OTP resend');
       }
       
+      // Call the resend OTP API
+      const resp = await authAPI.resendOtp(targetEmail);
+      const serverUserId = (resp as any)?.data?.userId;
+      if (serverUserId) {
+        localStorage.setItem(USER_ID_KEY, String(serverUserId));
+      }
+      
       // Store the email for verification purposes
       setVerificationEmail(targetEmail);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Resend OTP error:', error);
-      throw new Error('Failed to resend OTP');
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      throw new Error(serverMsg || 'Failed to resend OTP');
     } finally {
       setIsLoading(false);
     }

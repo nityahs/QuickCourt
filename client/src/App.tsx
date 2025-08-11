@@ -24,6 +24,7 @@ function AppContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [showFooter, setShowFooter] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
   const { user } = useAuth();
 
   // Handle scroll to show/hide footer
@@ -96,50 +97,26 @@ function AppContent() {
     };
   }, []);
   
-  // Remove the hash-based navigation useEffect
+  // Remove the hash-based navigation useEffect and replace with OTP modal logic
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
       console.log('Hash changed to:', hash);
-      
-      if (hash === 'login') {
-        console.log('Setting auth mode to login and showing modal');
+      if (hash === 'verify-otp') {
+        setShowOtpModal(true);
+        setShowAuthModal(false);
+      } else if (hash === 'login') {
         setAuthMode('login');
         setShowAuthModal(true);
       } else if (hash === 'signup') {
-        console.log('Setting auth mode to signup and showing modal');
         setAuthMode('signup');
         setShowAuthModal(true);
-      } else if (hash === 'verify-otp') {
-        setCurrentView('verify-otp');
-        setShowAuthModal(false);
-      } else if (hash === 'venues') {
-        setCurrentView('venues');
-      } else if (hash === 'bookings') {
-        // Redirect admin users to home page, others can access bookings
-        if (user?.role === 'admin') {
-          setCurrentView('home');
-          window.history.pushState({}, '', '/');
-        } else {
-          setCurrentView('bookings');
-        }
-      } else if (hash === 'profile') {
-        setCurrentView('profile');
-      } else if (hash === 'facility-owner') {
-        console.log('Setting current view to facility-owner');
-        setCurrentView('facility-owner');
-      } else if (hash === 'admin') {
-        console.log('Setting current view to admin');
-        setCurrentView('admin');
+      } else {
+        setShowOtpModal(false);
       }
     };
-
-    // Check hash on initial load
     handleHashChange();
-
-    // Listen for hash changes
     window.addEventListener('hashchange', handleHashChange);
-    
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
     };
@@ -170,12 +147,11 @@ function AppContent() {
   };
 
   const handleVerificationComplete = () => {
-    // Update user verification status and redirect to home
-    if (user) {
-      // In a real app, this would be handled by the API
-      const updatedUser = { ...user, isVerified: true };
-      localStorage.setItem('quickcourt_user', JSON.stringify(updatedUser));
-    }
+    // Close the OTP modal
+    setShowOtpModal(false);
+    // Clear the hash
+    window.location.hash = '';
+    // Redirect to home
     setCurrentView('home');
     window.history.pushState({}, '', '/');
   };
@@ -198,20 +174,7 @@ function AppContent() {
             </div>
           </>
         );
-      case 'verify-otp':
-        return (
-          <div className="max-w-md mx-auto px-4 sm:px-6 py-12">
-            <OtpVerification 
-              onVerificationComplete={handleVerificationComplete}
-              onBack={() => {
-                setAuthMode('signup');
-                setShowAuthModal(true);
-                setCurrentView('home');
-                window.location.hash = 'signup';
-              }}
-            />
-          </div>
-        );
+      // Remove 'verify-otp' from main content, now handled as modal
       case 'venues':
         return <VenuesList onViewVenue={handleViewVenue} />;
       case 'venue-details':
@@ -303,30 +266,41 @@ function AppContent() {
         onMenuToggle={() => setShowMobileMenu(!showMobileMenu)}
         showMobileMenu={showMobileMenu}
       />
+      <MobileMenu isOpen={showMobileMenu} onClose={() => setShowMobileMenu(false)} />
       
-      <MobileMenu
-        isOpen={showMobileMenu}
-        onClose={() => setShowMobileMenu(false)}
-      />
-
-      <main>
-        {renderContent()}
+      <main className="py-10">
+        <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+          {renderContent()}
+        </div>
       </main>
-
+      
       <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => {
-          console.log('Closing auth modal');
-          setShowAuthModal(false);
-          // Remove the path when closing the modal
-          if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
-            window.history.pushState("", document.title, '/');
-          }
-        }}
-        initialMode={authMode}
-      />
-
-      {/* Footer */}
+         isOpen={showAuthModal}
+         onClose={() => {
+           setShowAuthModal(false);
+           if (window.location.pathname === '/login' || window.location.pathname === '/signup') {
+             window.history.pushState("", document.title, '/');
+           }
+         }}
+         initialMode={authMode}
+       />
+      
+      {showOtpModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg overflow-hidden shadow-xl transform transition-all max-w-lg w-full">
+            <OtpVerification
+              onVerificationComplete={handleVerificationComplete}
+              onBack={() => {
+                setShowOtpModal(false);
+                setAuthMode('signup');
+                setShowAuthModal(true);
+                window.location.hash = '';
+              }}
+            />
+          </div>
+        </div>
+      )}
+      
       <footer className={`bg-gray-800 text-white py-8 transition-all duration-500 ease-in-out ${
         showFooter ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
       }`}>
