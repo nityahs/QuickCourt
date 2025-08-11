@@ -12,6 +12,7 @@ import BookingForm from './components/Booking/BookingForm';
 import UserProfile from './components/User/UserProfile';
 import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
+import TestLauncher from './components/Test/TestLauncher';
 import { Venue } from './types';
 
 // Transform server facility data to frontend venue format
@@ -236,6 +237,7 @@ const AppRoutes = () => {
       <Route path="/" element={<HomePage />} />
       <Route path="/venues" element={<VenuesPage />} />
       <Route path="/venue/:id" element={<VenueDetailsPage />} />
+      <Route path="/test" element={<TestLauncher />} />
       
       {/* Auth-required Routes */}
       <Route path="/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />

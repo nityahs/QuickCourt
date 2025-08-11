@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, ArrowLeft, CreditCard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { http } from '../../services/http';
-import StripePaymentWrapper from '../Payment/StripePaymentForm';
 
 interface Court {
   _id: string;
@@ -23,9 +22,15 @@ interface Venue {
 
 interface PaymentDetails {
   amount: number;
-  clientSecret: string;
-  paymentIntentId: string;
+  orderId: string;
   bookingId: string;
+}
+
+// Declare Razorpay interface for TypeScript
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
 }
 
 interface BookingFormProps {
@@ -33,9 +38,6 @@ interface BookingFormProps {
   onBookingComplete: () => void;
   onBack: () => void;
 }
-
-// Initialize Stripe
-// const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YourStripePublishableKey');
 
 const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onBack }) => {
   const { user } = useAuth();
@@ -59,6 +61,18 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     const court = courts.find(court => court._id === selectedCourt);
     return court ? court.pricePerHour * duration : 0;
   })();
+
+  // Load Razorpay script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   // Fetch courts when venue or sport changes
   useEffect(() => {
@@ -122,8 +136,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
       setBookingData(response.data.booking);
       setPaymentDetails({
         amount: totalPrice,
-        clientSecret: response.data.clientSecret,
-        paymentIntentId: response.data.paymentIntentId,
+        orderId: response.data.orderId,
         bookingId: response.data.booking._id || response.data.booking.id,
       });
       
@@ -136,25 +149,47 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     }
   };
 
-  const handleStripePayment = async (paymentIntentId: string) => {
-    try {
-      await handlePaymentSuccess(paymentIntentId);
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      setBookingError(error.message || 'Payment failed');
-    }
+  const handleRazorpayPayment = () => {
+    if (!paymentDetails) return;
+
+    const options = {
+      key: 'rzp_test_YourRazorpayKey', // Replace with your Razorpay key
+      amount: paymentDetails.amount * 100, // Convert to paise
+      currency: 'INR',
+      name: 'QuickCourt',
+      description: `Court booking at ${venue.name}`,
+      order_id: paymentDetails.orderId,
+      handler: function (response: any) {
+        handlePaymentSuccess(response);
+      },
+      prefill: {
+        name: user?.fullName || '',
+        email: user?.email || '',
+        contact: '', // Phone not available in User type
+      },
+      theme: {
+        color: '#3B82F6',
+      },
+      modal: {
+        ondismiss: () => {
+          console.log('Payment modal closed');
+        },
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   };
 
-  const handlePaymentError = (error: string) => {
-    setBookingError(error);
-    setIsSubmitting(false);
-  };
-
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
+  const handlePaymentSuccess = async (paymentResponse: any) => {
     try {
+      setIsSubmitting(true);
+      
       const response = await http.post('/bookings/verify-payment', {
         bookingId: paymentDetails?.bookingId,
-        paymentIntentId: paymentIntentId,
+        orderId: paymentDetails?.orderId,
+        paymentId: paymentResponse.razorpay_payment_id,
+        signature: paymentResponse.razorpay_signature,
       });
 
       if (response.data.success) {
@@ -166,6 +201,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     } catch (error) {
       console.error('Payment verification error:', error);
       alert('Payment verification failed. Please contact support.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -416,15 +453,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
         </div>
 
         <div className="space-y-4">
-          {paymentDetails && (
-            <StripePaymentWrapper
-              clientSecret={paymentDetails.clientSecret}
-              amount={paymentDetails.amount}
-              onSuccess={handleStripePayment}
-              onError={handlePaymentError}
-              isSubmitting={isSubmitting}
-            />
-          )}
+          <button
+            onClick={handleRazorpayPayment}
+            disabled={isSubmitting}
+            className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 font-medium flex items-center justify-center space-x-2"
+          >
+            <span>💳</span>
+            <span>{isSubmitting ? 'Processing...' : 'Pay with Razorpay'}</span>
+          </button>
 
           <button
             onClick={() => setStep('booking')}
@@ -435,7 +471,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
 
           <div className="text-center">
             <p className="text-sm text-gray-500">
-              🔒 Secure payment powered by Stripe
+              🔒 Secure payment powered by industry-leading encryption
             </p>
           </div>
         </div>

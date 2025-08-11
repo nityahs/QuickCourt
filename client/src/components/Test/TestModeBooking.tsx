@@ -1,24 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Calendar, Clock, ArrowLeft, CreditCard } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import { http } from '../../services/http';
 import StripePaymentWrapper from '../Payment/StripePaymentForm';
+import { mockVenues, mockCourts, mockTimeSlots, mockUser } from '../../utils/mockData';
 
-interface Court {
-  _id: string;
-  name: string;
-  sportType: string;
-  pricePerHour: number;
-  courtType: string;
-}
-
-interface Venue {
-  _id: string;
-  name: string;
-  address: string;
-  rating: number;
-  reviewCount: number;
-  sportTypes: string[];
+interface TestModeBookingProps {
+  onBack: () => void;
+  onComplete: () => void;
 }
 
 interface PaymentDetails {
@@ -28,24 +15,17 @@ interface PaymentDetails {
   bookingId: string;
 }
 
-interface BookingFormProps {
-  venue: Venue;
-  onBookingComplete: () => void;
-  onBack: () => void;
-}
-
-// Initialize Stripe
-// const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YourStripePublishableKey');
-
-const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onBack }) => {
-  const { user } = useAuth();
+const TestModeBooking: React.FC<TestModeBookingProps> = ({ onBack, onComplete }) => {
+  // Use mock data
+  const venue = mockVenues[0];
+  const courts = mockCourts.filter(court => court.facilityId === venue._id);
+  
+  // State
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedTime, setSelectedTime] = useState('');
-  const [selectedCourt, setSelectedCourt] = useState('');
+  const [selectedTime, setSelectedTime] = useState(mockTimeSlots[0]);
+  const [selectedCourt, setSelectedCourt] = useState(courts[0]._id);
   const [selectedSport, setSelectedSport] = useState(venue.sportTypes[0]);
   const [duration, setDuration] = useState(1);
-  const [courts, setCourts] = useState<Court[]>([]);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
   
@@ -55,51 +35,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   const [bookingData, setBookingData] = useState<any>(null);
 
   // Calculate total price
-  const totalPrice = (() => {
-    const court = courts.find(court => court._id === selectedCourt);
-    return court ? court.pricePerHour * duration : 0;
-  })();
+  const selectedCourtData = courts.find(court => court._id === selectedCourt);
+  const totalPrice = selectedCourtData ? selectedCourtData.pricePerHour * duration : 0;
 
-  // Fetch courts when venue or sport changes
-  useEffect(() => {
-    const fetchCourts = async () => {
-      try {
-        const response = await http.get(`/courts?facility=${venue._id}&sportType=${selectedSport}`);
-        setCourts(response.data);
-        if (response.data.length > 0) {
-          setSelectedCourt(response.data[0]._id);
-        } else {
-          setSelectedCourt('');
-        }
-      } catch (error) {
-        console.error('Failed to fetch courts:', error);
-      }
-    };
-
-    if (venue._id && selectedSport) {
-      fetchCourts();
-    }
-  }, [venue._id, selectedSport]);
-
-  // Fetch available time slots
-  useEffect(() => {
-    let ignore = false;
-    (async () => {
-      try {
-        if (selectedCourt && selectedDate) {
-          const response = await http.get(`/bookings/available-times?court=${selectedCourt}&date=${selectedDate}`);
-          const times = response.data;
-          if (!ignore) {
-            setTimeSlots(times as string[]);
-            if (times.length) setSelectedTime(times[0] as string);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch time slots:', error);
-      }
-    })();
-    return () => { ignore = true; };
-  }, [selectedCourt, selectedDate]);
+  // Filter courts by selected sport
+  const filteredCourts = courts.filter(court => court.sportType === selectedSport);
 
   const handleBooking = async () => {
     if (!selectedCourt || !selectedDate || !selectedTime) {
@@ -111,62 +51,65 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     setBookingError('');
 
     try {
-      const response = await http.post('/bookings/create-pending', {
-        court: selectedCourt,
-        date: selectedDate,
-        startTime: selectedTime,
-        duration,
-        amount: totalPrice,
-      });
+      // Mock API call - create a fake pending booking
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
 
-      setBookingData(response.data.booking);
+      const mockBookingResponse = {
+        booking: {
+          _id: `mock-booking-${Date.now()}`,
+          courtId: selectedCourt,
+          dateISO: selectedDate,
+          start: selectedTime,
+          end: `${String(parseInt(selectedTime.split(':')[0]) + duration).padStart(2, '0')}:00`,
+          price: totalPrice,
+          status: 'pending'
+        },
+        clientSecret: `pi_mock_${Date.now()}_secret`,
+        paymentIntentId: `pi_mock_${Date.now()}`,
+      };
+
+      setBookingData(mockBookingResponse.booking);
       setPaymentDetails({
         amount: totalPrice,
-        clientSecret: response.data.clientSecret,
-        paymentIntentId: response.data.paymentIntentId,
-        bookingId: response.data.booking._id || response.data.booking.id,
+        clientSecret: mockBookingResponse.clientSecret,
+        paymentIntentId: mockBookingResponse.paymentIntentId,
+        bookingId: mockBookingResponse.booking._id,
       });
       
       setStep('payment');
     } catch (error: any) {
-      console.error('Booking error:', error);
-      setBookingError(error.response?.data?.message || 'Failed to create booking');
+      console.error('Mock booking error:', error);
+      setBookingError('Failed to create booking (mock error)');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleStripePayment = async (paymentIntentId: string) => {
+  const handleStripePayment = async (_paymentIntentId: string) => {
     try {
-      await handlePaymentSuccess(paymentIntentId);
-    } catch (error: any) {
-      console.error('Payment error:', error);
-      setBookingError(error.message || 'Payment failed');
+      // Mock payment verification
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate API delay
+
+      const mockVerificationResponse = {
+        success: true,
+        booking: {
+          ...bookingData,
+          status: 'confirmed',
+          confirmedAt: new Date()
+        }
+      };
+
+      setBookingData(mockVerificationResponse.booking);
+      setStep('confirmation');
+    } catch (error) {
+      console.error('Mock payment verification error:', error);
+      alert('Payment verification failed (mock error)');
     }
   };
 
   const handlePaymentError = (error: string) => {
     setBookingError(error);
     setIsSubmitting(false);
-  };
-
-  const handlePaymentSuccess = async (paymentIntentId: string) => {
-    try {
-      const response = await http.post('/bookings/verify-payment', {
-        bookingId: paymentDetails?.bookingId,
-        paymentIntentId: paymentIntentId,
-      });
-
-      if (response.data.success) {
-        setBookingData(response.data.booking);
-        setStep('confirmation');
-      } else {
-        throw new Error('Payment verification failed');
-      }
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      alert('Payment verification failed. Please contact support.');
-    }
   };
 
   const getSportEmoji = (sport: string) => {
@@ -177,17 +120,28 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
       'Cricket': '🏏',
       'Badminton': '🏸',
       'Volleyball': '🏐',
-      'Table Tennis': '🏓',
-      'Hockey': '🏒',
-      'Swimming': '🏊',
-      'Boxing': '🥊'
+      'Table Tennis': '🏓'
     };
     return emojiMap[sport] || '🏆';
   };
 
-  // Render functions for different steps
   const renderBookingStep = () => (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Test Mode Banner */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <span className="text-yellow-600 text-2xl">🧪</span>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-yellow-800">Test Mode Active</h3>
+            <p className="text-sm text-yellow-700">
+              Using mock data for Stripe payment testing. No real bookings will be created.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -198,11 +152,11 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
           Back
         </button>
         <div className="text-right">
-          <span className="text-gray-600">{user?.fullName || 'Guest'}</span>
+          <span className="text-gray-600">{mockUser.fullName}</span>
         </div>
       </div>
 
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">Court Booking</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-8">Court Booking (Test Mode)</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Booking Form */}
@@ -227,7 +181,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 </label>
                 <select
                   value={selectedSport}
-                  onChange={(e) => setSelectedSport(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedSport(e.target.value);
+                    // Reset court selection when sport changes
+                    const newCourts = courts.filter(court => court.sportType === e.target.value);
+                    if (newCourts.length > 0) {
+                      setSelectedCourt(newCourts[0]._id);
+                    }
+                  }}
                   className="block w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {venue.sportTypes.map(sport => (
@@ -267,7 +228,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                     onChange={(e) => setSelectedTime(e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {timeSlots.map(time => (
+                    {mockTimeSlots.map(time => (
                       <option key={time} value={time}>{time}</option>
                     ))}
                   </select>
@@ -301,13 +262,13 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Court
                 </label>
-                {courts.length > 0 ? (
+                {filteredCourts.length > 0 ? (
                   <select
                     value={selectedCourt}
                     onChange={(e) => setSelectedCourt(e.target.value)}
                     className="block w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {courts.map(court => (
+                    {filteredCourts.map(court => (
                       <option key={court._id} value={court._id}>
                         {court.name} - ₹{court.pricePerHour}/hr
                       </option>
@@ -315,7 +276,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                   </select>
                 ) : (
                   <div className="block w-full px-3 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
-                    {selectedSport ? `No courts available for ${selectedSport}` : 'Please select a sport first'}
+                    No courts available for {selectedSport}
                   </div>
                 )}
               </div>
@@ -326,15 +287,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
 
               <button
                 onClick={handleBooking}
-                disabled={isSubmitting || !selectedCourt || timeSlots.length === 0}
+                disabled={isSubmitting || filteredCourts.length === 0}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
               >
                 {isSubmitting ? (
-                  'Creating Booking...'
+                  'Creating Test Booking...'
                 ) : (
                   <>
                     <CreditCard size={16} className="mr-2" />
-                    Proceed to Payment - ₹{totalPrice}
+                    Test Stripe Payment - ₹{totalPrice}
                   </>
                 )}
               </button>
@@ -345,36 +306,28 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
         {/* Booking Summary */}
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Summary</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Test Booking Summary</h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Venue:</span>
                 <span className="font-medium">{venue.name}</span>
               </div>
-              {selectedSport && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Sport:</span>
-                  <span className="font-medium">{getSportEmoji(selectedSport)} {selectedSport}</span>
-                </div>
-              )}
-              {selectedDate && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Date:</span>
-                  <span className="font-medium">{new Date(selectedDate).toLocaleDateString()}</span>
-                </div>
-              )}
-              {selectedTime && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Time:</span>
-                  <span className="font-medium">{selectedTime} - {String(Math.min(23, parseInt(selectedTime.split(':')[0]) + duration)).padStart(2, '0')}:{selectedTime.split(':')[1]}</span>
-                </div>
-              )}
-              {duration && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Duration:</span>
-                  <span className="font-medium">{duration} hour{duration > 1 ? 's' : ''}</span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span className="text-gray-600">Sport:</span>
+                <span className="font-medium">{getSportEmoji(selectedSport)} {selectedSport}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Date:</span>
+                <span className="font-medium">{new Date(selectedDate).toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Time:</span>
+                <span className="font-medium">{selectedTime} - {String(Math.min(23, parseInt(selectedTime.split(':')[0]) + duration)).padStart(2, '0')}:00</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Duration:</span>
+                <span className="font-medium">{duration} hour{duration > 1 ? 's' : ''}</span>
+              </div>
               <hr className="my-4" />
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total:</span>
@@ -390,22 +343,32 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   const renderPaymentStep = () => (
     <div className="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="bg-white rounded-lg shadow-lg p-8">
+        {/* Test Mode Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+          <div className="flex items-center">
+            <span className="text-blue-600 mr-2">🧪</span>
+            <span className="text-sm text-blue-800 font-medium">
+              Test Mode: Use card 4242 4242 4242 4242
+            </span>
+          </div>
+        </div>
+
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800">Complete Payment</h2>
-          <p className="text-gray-600 mt-2">Secure payment for your court booking</p>
+          <h2 className="text-2xl font-semibold text-gray-800">Complete Test Payment</h2>
+          <p className="text-gray-600 mt-2">Testing Stripe payment integration</p>
         </div>
         
         <div className="bg-blue-50 p-6 rounded-lg mb-8">
           <div className="text-center">
             <p className="text-lg font-semibold text-blue-800">Amount to Pay</p>
             <p className="text-3xl font-bold text-blue-600">₹{paymentDetails?.amount}</p>
-            <p className="text-sm text-gray-600 mt-2">Booking ID: {paymentDetails?.bookingId}</p>
+            <p className="text-sm text-gray-600 mt-2">Test Booking ID: {paymentDetails?.bookingId}</p>
           </div>
         </div>
 
         <div className="space-y-4 mb-8">
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-800 mb-2">Booking Details</h4>
+            <h4 className="font-medium text-gray-800 mb-2">Test Booking Details</h4>
             <div className="space-y-1 text-sm text-gray-600">
               <p><span className="font-medium">Venue:</span> {venue.name}</p>
               <p><span className="font-medium">Sport:</span> {selectedSport}</p>
@@ -433,9 +396,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
             Back to Booking
           </button>
 
+          {/* Manual Test Payment Button - bypass for testing */}
+          <button
+            onClick={() => {
+              setIsSubmitting(true);
+              setTimeout(() => {
+                handleStripePayment('mock_payment_intent_test');
+                setIsSubmitting(false);
+              }, 2000);
+            }}
+            className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 font-medium"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Processing Test Payment...' : '🧪 Simulate Successful Payment (Bypass Stripe)'}
+          </button>
+
           <div className="text-center">
             <p className="text-sm text-gray-500">
-              🔒 Secure payment powered by Stripe
+              🔒 Secure payment powered by Stripe (Test Mode)
             </p>
           </div>
         </div>
@@ -452,26 +430,30 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
           </svg>
         </div>
         
-        <h2 className="text-2xl font-semibold text-gray-800 mb-4">🎉 Booking Confirmed!</h2>
-        <p className="text-gray-600 mb-8">Your court has been successfully booked and payment completed.</p>
+        <h2 className="text-2xl font-semibold text-gray-800 mb-4">🎉 Test Payment Successful!</h2>
+        <p className="text-gray-600 mb-8">Your Stripe integration is working correctly!</p>
         
         <div className="bg-green-50 p-6 rounded-lg mb-8 space-y-2">
-          <p className="font-medium text-green-800">Booking Details:</p>
-          <p className="text-sm text-green-700">ID: {bookingData?._id || bookingData?.id}</p>
+          <p className="font-medium text-green-800">Test Booking Details:</p>
+          <p className="text-sm text-green-700">ID: {bookingData?._id}</p>
           <p className="text-sm text-green-700">Venue: {venue.name}</p>
           <p className="text-sm text-green-700">Sport: {selectedSport}</p>
           <p className="text-sm text-green-700">Date: {new Date(selectedDate).toLocaleDateString()}</p>
           <p className="text-sm text-green-700">Time: {selectedTime} ({duration}h)</p>
           <p className="text-sm text-green-700">Amount Paid: ₹{paymentDetails?.amount}</p>
         </div>
+
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <p className="text-sm text-yellow-800">
+            <strong>Note:</strong> This was a test transaction. No real booking was created.
+          </p>
+        </div>
         
         <button
-          onClick={() => {
-            onBookingComplete();
-          }}
+          onClick={onComplete}
           className="w-full bg-green-600 text-white py-3 px-6 rounded-lg hover:bg-green-700 font-medium"
         >
-          Done
+          Complete Test
         </button>
       </div>
     </div>
@@ -486,4 +468,4 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   );
 };
 
-export default BookingForm;
+export default TestModeBooking;
