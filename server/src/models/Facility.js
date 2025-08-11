@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import mongoose from 'mongoose';
 const FacilitySchema = new mongoose.Schema({
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -14,4 +15,7 @@ const FacilitySchema = new mongoose.Schema({
   startingPricePerHour: { type: Number, default: 0 },
   highlight: { type: Boolean, default: false }
 }, { timestamps: true });
-export default mongoose.model('Facility', FacilitySchema);
+
+// Use env override to match Atlas collection name if it's 'venues'
+const collectionName = process.env.FACILITIES_COLLECTION || 'facilities';
+export default mongoose.model('Facility', FacilitySchema, collectionName);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Star, Clock, Users } from 'lucide-react';
+import { MapPin, Star } from 'lucide-react';
 import { Venue } from '../../types';
 
 interface VenueCardProps {
@@ -8,12 +8,16 @@ interface VenueCardProps {
 }
 
 const VenueCard: React.FC<VenueCardProps> = ({ venue, onViewDetails }) => {
+  const PLACEHOLDER = 'https://via.placeholder.com/800x450?text=No+Image';
+  const primaryImage = (venue.images && venue.images.length > 0 ? venue.images[0] : PLACEHOLDER);
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
       <div className="relative h-48">
         <img
-          src={venue.images[0]}
+          src={primaryImage}
           alt={venue.name}
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = PLACEHOLDER; }}
           className="w-full h-full object-cover"
         />
         <div className="absolute top-4 right-4 bg-white px-2 py-1 rounded-md shadow-sm">
