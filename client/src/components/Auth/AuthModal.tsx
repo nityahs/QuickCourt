@@ -10,9 +10,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'signup';
+  onSwitchMode?: (mode: 'login' | 'signup') => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login', onSwitchMode }) => {
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
 
   // Update mode when initialMode prop changes
@@ -20,22 +21,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     if (isOpen) {
       setMode(initialMode);
     }
-    if (DEBUG) {
-      console.log('AuthModal props:', { isOpen, initialMode });
-    }
-    
-    // Close modal if hash is set to verify-otp
-    if (window.location.hash === '#verify-otp') {
-      onClose();
-    }
   }, [initialMode, isOpen, onClose]);
 
-  // Custom mode setter that also updates URL hash
+  // Custom mode setter
   const handleSetMode = (newMode: 'login' | 'signup') => {
     setMode(newMode);
-    window.location.hash = newMode;
-    if (DEBUG) {
-      console.log('Mode changed to:', newMode);
+    if (onSwitchMode) {
+      onSwitchMode(newMode);
     }
   };
 

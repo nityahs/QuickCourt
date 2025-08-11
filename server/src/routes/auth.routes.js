@@ -20,12 +20,28 @@ r.post('/signup', required(['email','password']), async (req,res,next)=>{
   if (role === 'facility_owner') role = 'owner';
   if (!['user','owner','admin'].includes(role)) return res.status(400).json({ error: 'Invalid role', code:'INVALID_ROLE' });
     const exists = await User.findOne({ email });
-  if (exists) return res.status(400).json({ error: 'Email in use', code:'EMAIL_IN_USE' });
+  if (exists) {
+    if (!exists.otpVerified) {
+      // Resend OTP for unverified existing account and allow client to proceed to verification
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
+      exists.otp = otp;
+      exists.otpExpiresAt = otpExpiresAt;
+      await exists.save();
+      console.log(`[signup] Resending OTP ${otp} to ${email} for existing user ${exists._id}`);
+      // Send the SAME OTP that was stored in the database
+      await sendOtpEmail({ to: email, name: name || exists.name || exists.fullName, otp });
+      return res.json({ message: 'OTP resent', userId: exists._id });
+    }
+    return res.status(400).json({ error: 'Email in use', code:'EMAIL_IN_USE' });
+  }
     const passwordHash = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000+Math.random()*900000).toString();
-    const user = await User.create({ name,email,passwordHash,role, otp, otpVerified:false });
-    // Send OTP email (best-effort)
-    sendOtpEmail({ to: email, name, otp }).catch(()=>{});
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const user = await User.create({ name,email,passwordHash,role, otp, otpExpiresAt, otpVerified:false });
+    console.log(`[signup] Generated OTP ${otp} for new user ${user._id} (${email})`);
+    // Send the SAME OTP that was stored in the database
+    await sendOtpEmail({ to: email, name, otp });
     res.json({ message:'OTP sent', userId:user._id });
   }catch(e){ next(e); }
 });
@@ -36,10 +52,38 @@ r.post('/verify-otp', required(['userId','otp']), async (req,res,next)=>{
     const user = await User.findById(userId);
     if(!user) return res.status(404).json({ error:'User not found' });
     if (user.banned) return res.status(403).json({ error: 'You have been banned', code: 'BANNED' });
-    if(user.otp !== otp) return res.status(400).json({ error:'Invalid OTP' });
-    user.otpVerified = true; user.otp = undefined; await user.save();
+    if(user.otpVerified) return res.status(400).json({ error:'Email already verified' });
+    if(!user.otp || user.otp !== otp) {
+      console.log(`[verify-otp] OTP mismatch for user ${userId}: expected ${user.otp}, got ${otp}`);
+      return res.status(400).json({ error:'Invalid OTP' });
+    }
+    if(user.otpExpiresAt && new Date() > user.otpExpiresAt) return res.status(400).json({ error:'OTP has expired' });
+    console.log(`[verify-otp] OTP verified successfully for user ${userId}`);
+    user.otpVerified = true; user.otp = undefined; user.otpExpiresAt = undefined; await user.save();
     const token = signToken({ _id:user._id, role:user.role });
     res.json({ token });
+  }catch(e){ next(e); }
+});
+
+r.post('/resend-otp', required(['email']), async (req,res,next)=>{
+  try{
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    if(!user) return res.status(404).json({ error:'User not found' });
+    if (user.banned) return res.status(403).json({ error: 'You have been banned', code: 'BANNED' });
+    if(user.otpVerified) return res.status(400).json({ error:'Email already verified' });
+    
+    // Generate new OTP
+    const otp = Math.floor(100000+Math.random()*900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    user.otp = otp;
+    user.otpExpiresAt = otpExpiresAt;
+    await user.save();
+    console.log(`[resend-otp] Generated new OTP ${otp} for user ${user._id} (${email})`);
+    
+    // Send the SAME OTP that was stored in the database
+    await sendOtpEmail({ to: email, name: user.name || user.fullName, otp });
+    res.json({ message:'New OTP sent', userId:user._id });
   }catch(e){ next(e); }
 });
 
@@ -51,6 +95,10 @@ r.post('/login', required(['email','password']), async (req,res,next)=>{
     if (user.banned) return res.status(403).json({ error: 'You have been banned', code: 'BANNED' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if(!ok) return res.status(400).json({ error:'Invalid credentials' });
+    if (!user.otpVerified) {
+      // Block login until email verification; surface a clear code and userId so client can continue OTP flow
+      return res.status(403).json({ error: 'Email not verified. Please enter the verification code.', code: 'OTP_REQUIRED', userId: user._id });
+    }
     const token = signToken({ _id:user._id, role:user.role });
     res.json({ token });
   }catch(e){ next(e); }

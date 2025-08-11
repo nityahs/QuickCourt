@@ -44,6 +44,9 @@ export const authAPI = {
   verifyOtp: (userId: string, otp: string) => 
     api.post<VerifyOtpResponse>('/auth/verify-otp', { userId, otp }),
   
+  resendOtp: (email: string) => 
+    api.post<SignupResponse>('/auth/resend-otp', { email }),
+  
   getProfile: (token: string) => 
     api.get<UserResponse>('/auth/me', {
       headers: {

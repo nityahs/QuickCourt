@@ -7,7 +7,9 @@
     "dev": "nodemon server.js",
     "seed": "node src/seed/seed.js",
     "seed:admin": "node src/seed/admin-user.js",
-    "seed:facilities": "node src/seed/seed-facilities.js"
+    "seed:facilities": "node src/seed/seed-facilities.js",
+    "test-email": "node test-email.js",
+    "test-otp-flow": "node test-otp-flow.js"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.20",

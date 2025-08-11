@@ -5,9 +5,11 @@ import { useAuth } from '../../contexts/AuthContext';
 interface HeaderProps {
   onMenuToggle?: () => void;
   showMobileMenu?: boolean;
+  onLogin?: () => void;
+  onSignup?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, onSignup }) => {
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -185,28 +187,24 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
               </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <a
-                  href="/login"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
-                  onClick={(e) => {
-                    e.preventDefault();
+                <button
+                  onClick={onLogin || (() => {
                     window.history.pushState({}, '', '/login');
                     window.dispatchEvent(new Event('popstate'));
-                  }}
+                  })}
+                  className="text-gray-700 hover:text-gray-900 px-3 py-2 text-sm font-medium"
                 >
                   Login
-                </a>
-                <a
-                  href="/signup"
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-sporty"
-                  onClick={(e) => {
-                    e.preventDefault();
+                </button>
+                <button
+                  onClick={onSignup || (() => {
                     window.history.pushState({}, '', '/signup');
                     window.dispatchEvent(new Event('popstate'));
-                  }}
+                  })}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-md text-sm font-semibold shadow-sporty"
                 >
                   Sign Up
-                </a>
+                </button>
               </div>
             )}
           </div>

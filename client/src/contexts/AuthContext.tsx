@@ -3,20 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { User } from '../types';
 import { authAPI } from '../services/auth';
 
-// Token storage key
 const TOKEN_KEY = 'quickcourt_token';
 const USER_ID_KEY = 'quickcourt_user_id';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  signup: (userData: Partial<User> & { password: string }) => Promise<User>;
+  signup: (userData: Partial<User> & { password: string }) => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
   resendOtp: (email?: string) => Promise<void>;
   logout: () => void;
-  updateUser: (userData: Partial<User>) => void;
   isLoading: boolean;
   verificationEmail: string;
+  showOtpModal: boolean;
+  setShowOtpModal: (show: boolean) => void;
+  setVerificationEmail: (email: string) => void;
+  setReturnPath: (path: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,84 +39,62 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [verificationEmail, setVerificationEmail] = useState<string>('');
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [returnPath, setReturnPath] = useState<string>('/');
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Check for stored token
         const token = localStorage.getItem(TOKEN_KEY);
-        
         if (token) {
-          // Get user profile from server
           const userResponse = await authAPI.getProfile(token);
           const userData = userResponse.data;
-          
-          // Convert server user model to client user model
-          const user: User = {
+          const clientUser: User = {
             id: userData._id,
             email: userData.email,
             fullName: userData.name,
             role: userData.role as User['role'],
             isVerified: userData.otpVerified,
-            avatar: userData.avatar
+            avatar: userData.avatar,
           };
-          
-          setUser(user);
-          localStorage.setItem('quickcourt_user', JSON.stringify(user));
-        } else {
-          // Fallback to stored user if no token (for backward compatibility)
-          const storedUser = localStorage.getItem('quickcourt_user');
-          if (storedUser) {
-            setUser(JSON.parse(storedUser));
-          }
+          setUser(clientUser);
         }
       } catch (error) {
         console.error('Error loading user profile:', error);
-        // Clear potentially invalid data
         localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem('quickcourt_user');
-        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
-    
     loadUser();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Call the login API
       const response = await authAPI.login(email, password);
       const { token } = response.data;
-      
-      // Store the token
       localStorage.setItem(TOKEN_KEY, token);
-      
-      // Get user profile
       const userResponse = await authAPI.getProfile(token);
       const userData = userResponse.data;
-      
-      // Convert server user model to client user model
-      const user: User = {
+      const clientUser: User = {
         id: userData._id,
         email: userData.email,
         fullName: userData.name,
-        role: userData.role === 'owner' ? 'facility_owner' : userData.role as User['role'],
+        role: userData.role === 'owner' ? 'facility_owner' : (userData.role as User['role']),
         isVerified: userData.otpVerified,
-        avatar: userData.avatar
+        avatar: userData.avatar,
       };
-      
-      setUser(user);
-      localStorage.setItem('quickcourt_user', JSON.stringify(user));
+      setUser(clientUser);
+      navigate('/');
     } catch (error: any) {
-      // If banned, surface clear message and ensure no token remains
-      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
-      if (serverMsg && /banned/i.test(serverMsg)) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem('quickcourt_user');
+      const code = error?.response?.data?.code;
+      const userId = error?.response?.data?.userId;
+      if (code === 'OTP_REQUIRED' && userId) {
+        localStorage.setItem(USER_ID_KEY, String(userId));
+        setVerificationEmail(email);
+        setShowOtpModal(true);
       }
       throw error;
     } finally {
@@ -125,36 +105,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (userData: Partial<User> & { password: string }) => {
     setIsLoading(true);
     try {
-      // Call the signup API
-      const response = await authAPI.signup(
-        userData.fullName!, 
-        userData.email!, 
-        userData.password, 
-        userData.role === 'facility_owner' ? 'owner' : (userData.role || 'user')
-      );
+      // Store current path before showing OTP modal
+      setReturnPath(window.location.pathname);
       
-      // Store the userId for OTP verification
+      const response = await authAPI.signup(
+        userData.fullName!,
+        userData.email!,
+        userData.password,
+        userData.role === 'facility_owner' ? 'owner' : userData.role || 'user'
+      );
       const { userId } = response.data;
       localStorage.setItem(USER_ID_KEY, userId);
-      
-      // Create a temporary user object
-      const newUser: User = {
-        id: userId,
-        email: userData.email!,
-        fullName: userData.fullName!,
-        role: userData.role || 'user',
-        isVerified: false,
-        avatar: userData.avatar
-      };
-      
-      setUser(newUser);
-      localStorage.setItem('quickcourt_user', JSON.stringify(newUser));
-      
-      // Store the email for verification purposes
       setVerificationEmail(userData.email!);
-      
-      // Return the user for further processing
-      return newUser;
+      setShowOtpModal(true); 
     } catch (error) {
       console.error('Signup error:', error);
       throw new Error('Signup failed');
@@ -166,111 +129,80 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     setVerificationEmail('');
-    
-    localStorage.removeItem('quickcourt_user');
+    setShowOtpModal(false);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_ID_KEY);
-    
-    localStorage.removeItem('quickcourt_facilities');
-    localStorage.removeItem('quickcourt_bookings');
-    localStorage.removeItem('quickcourt_venues');
-    localStorage.removeItem('quickcourt_profile');
-    
-    sessionStorage.clear();
-    
     navigate('/');
-    
-    window.location.href = '/';
   };
 
   const verifyOtp = async (otp: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Get the userId from storage
-      const userId = localStorage.getItem(USER_ID_KEY);
-      
+      let userId = localStorage.getItem(USER_ID_KEY);
       if (!userId) {
-        throw new Error('User ID not found');
+        throw new Error('User ID not found for OTP verification.');
       }
-      
-      // Call the verify OTP API
       const response = await authAPI.verifyOtp(userId, otp);
       const { token } = response.data;
-      
-      // Store the token
       localStorage.setItem(TOKEN_KEY, token);
-      
-      // Get user profile
       const userResponse = await authAPI.getProfile(token);
       const userData = userResponse.data;
-      
-      // Convert server user model to client user model
       const verifiedUser: User = {
         id: userData._id,
         email: userData.email,
         fullName: userData.name,
-        role: userData.role === 'owner' ? 'facility_owner' : userData.role as User['role'],
+        role: userData.role === 'owner' ? 'facility_owner' : (userData.role as User['role']),
         isVerified: true,
-        avatar: userData.avatar
+        avatar: userData.avatar,
       };
-      
       setUser(verifiedUser);
-      localStorage.setItem('quickcourt_user', JSON.stringify(verifiedUser));
+      setShowOtpModal(false);
+      navigate(returnPath); // Navigate back to where user was before signup
     } catch (error: any) {
-      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
-      if (serverMsg && /banned/i.test(serverMsg)) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem('quickcourt_user');
-      }
       console.error('OTP verification error:', error);
-      throw new Error(serverMsg || 'OTP verification failed');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const resendOtp = async (email?: string): Promise<void> => {
-    setIsLoading(true);
-    try {
-      // In a real implementation, we would have an API endpoint to resend OTP
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const targetEmail = email || verificationEmail || user?.email;
-      if (!targetEmail) {
-        throw new Error('No email provided for OTP resend');
-      }
-      
-      // Store the email for verification purposes
-      setVerificationEmail(targetEmail);
-    } catch (error) {
-      console.error('Resend OTP error:', error);
-      throw new Error('Failed to resend OTP');
+      throw new Error(error?.response?.data?.error || 'OTP verification failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const updateUser = (userData: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem('quickcourt_user', JSON.stringify(updatedUser));
+  const resendOtp = async (email?: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const targetEmail = email || verificationEmail;
+      if (!targetEmail) {
+        throw new Error('No email provided for OTP resend');
+      }
+      const resp = await authAPI.resendOtp(targetEmail);
+      const serverUserId = (resp as any)?.data?.userId;
+      if (serverUserId) {
+        localStorage.setItem(USER_ID_KEY, String(serverUserId));
+      }
+    } catch (error: any) {
+      console.error('Resend OTP error:', error);
+      throw new Error(error?.response?.data?.error || 'Failed to resend OTP');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      login,
-      signup,
-      verifyOtp,
-      resendOtp,
-      logout,
-      updateUser,
-      isLoading,
-      verificationEmail
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        verifyOtp,
+        resendOtp,
+        logout,
+        isLoading,
+        verificationEmail,
+        showOtpModal,
+        setShowOtpModal,
+        setVerificationEmail,
+        setReturnPath,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

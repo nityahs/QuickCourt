@@ -16,6 +16,7 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
   const [error, setError] = useState('');
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [verificationStatus, setVerificationStatus] = useState<'pending' | 'success' | 'error'>('pending');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const { user, verifyOtp, resendOtp, isLoading, verificationEmail } = useAuth();
 
@@ -33,6 +34,13 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
       setResendDisabled(false);
     }
   }, [countdown, resendDisabled]);
+  
+  // Focus the first input field when component mounts
+  useEffect(() => {
+    if (inputRefs.current[0]) {
+      inputRefs.current[0].focus();
+    }
+  }, []);
 
   const handleChange = (index: number, value: string) => {
     // Only allow numbers
@@ -79,6 +87,7 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setVerificationStatus('pending');
 
     const otpValue = otp.join('');
     if (otpValue.length !== 6) {
@@ -88,22 +97,28 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
 
     try {
       await verifyOtp(otpValue);
-      // For demo purposes, any 6-digit code is accepted
-      onVerificationComplete();
+      setVerificationStatus('success');
+      setError('Verification successful! Redirecting...');
+      
+      // Short delay before redirecting for better UX
+      setTimeout(() => {
+        onVerificationComplete();
+      }, 1500);
     } catch (err: any) {
-       // Display the error message from the server if available
-       if (err.response && err.response.data) {
-         if (err.response.data.error) {
-           setError(err.response.data.error);
-         } else if (err.response.data.message) {
-           setError(err.response.data.message);
-         } else {
-           setError('Invalid verification code. Please try again.');
-         }
-       } else {
-         setError('Invalid verification code. Please try again.');
-       }
-       console.error('OTP verification error:', err);
+      setVerificationStatus('error');
+      // Display the error message from the server if available
+      if (err.response && err.response.data) {
+        if (err.response.data.error) {
+          setError(err.response.data.error);
+        } else if (err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError('Invalid verification code. Please try again.');
+        }
+      } else {
+        setError('Invalid verification code. Please try again.');
+      }
+      console.error('OTP verification error:', err);
     }
   };
 
@@ -111,11 +126,18 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
     setError('');
     setResendDisabled(true);
     setCountdown(60); // 60 seconds countdown
+    setVerificationStatus('pending');
 
     try {
       await resendOtp(email);
       // Show success message
       setError('A new verification code has been sent to your email');
+      // Clear the OTP fields
+      setOtp(['', '', '', '', '', '']);
+      // Focus the first input field
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
     } catch (err: any) {
        // Display the error message from the server if available
        if (err.response && err.response.data) {
@@ -136,7 +158,7 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900">QUICKCOURT</h2>
         <p className="text-gray-600 mt-2">VERIFY YOUR EMAIL</p>
@@ -147,6 +169,7 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
           We've sent a verification code to{' '}
           <span className="font-medium">{email || verificationEmail || user?.email || 'your email'}</span>
         </p>
+        <p className="text-sm text-gray-500 mt-1">Please check your inbox and enter the 6-digit code below</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -160,12 +183,15 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
                 key={index}
                 ref={el => (inputRefs.current[index] = el)}
                 type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={1}
                 value={digit}
                 onChange={e => handleChange(index, e.target.value)}
                 onKeyDown={e => handleKeyDown(index, e)}
                 onPaste={index === 0 ? handlePaste : undefined}
-                className="w-12 h-12 text-center text-xl font-semibold border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-12 h-12 text-center text-xl font-semibold border ${verificationStatus === 'error' ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors`}
+                disabled={isLoading || verificationStatus === 'success'}
                 required
               />
             ))}
@@ -174,7 +200,7 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
 
         {error && (
           <div className="text-center text-sm">
-            <p className={error.includes('sent') ? 'text-green-600' : 'text-red-600'}>
+            <p className={error.includes('sent') || error.includes('successful') ? 'text-green-600' : 'text-red-600'}>
               {error}
             </p>
           </div>
@@ -182,17 +208,18 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
 
         <button
           type="submit"
-          disabled={isLoading}
-          className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading || verificationStatus === 'success' || otp.join('').length !== 6}
+          className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${verificationStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
         >
-          {isLoading ? 'Verifying...' : 'Verify'}
+          {isLoading ? 'Verifying...' : verificationStatus === 'success' ? 'Verified ✓' : 'Verify'}
         </button>
 
         <div className="flex justify-between items-center">
           <button
             type="button"
             onClick={onBack}
-            className="text-sm font-medium text-blue-600 hover:text-blue-500"
+            disabled={isLoading}
+            className="text-sm font-medium text-blue-600 hover:text-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             Back to Sign Up
           </button>
@@ -200,13 +227,18 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
           <button
             type="button"
             onClick={handleResendCode}
-            disabled={resendDisabled}
+            disabled={resendDisabled || isLoading}
             className="text-sm font-medium text-blue-600 hover:text-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
           >
             {resendDisabled ? `Resend code (${countdown}s)` : 'Resend code'}
           </button>
         </div>
       </form>
+      
+      <div className="mt-6 text-center text-xs text-gray-500">
+        <p>Didn't receive the code? Check your spam folder or click "Resend code"</p>
+        <p className="mt-1">The verification code will expire in 10 minutes</p>
+      </div>
     </div>
   );
 };

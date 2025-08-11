@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock, User, Upload } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, validatePassword } from '../../utils/validation';
 
@@ -8,7 +8,7 @@ interface SignupFormProps {
   onClose: () => void;
 }
 
-const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onClose }) => {
+const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -55,15 +55,9 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onClose }) => 
     }
 
     try {
-      // Sign up the user
-      const newUser = await signup(formData);
-      
-      // Simulate sending OTP to the user's email
-      // In a real app, this would be handled by the backend
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Redirect to OTP verification page
-      window.location.hash = 'verify-otp';
+      // Sign up the user - the AuthContext will automatically show the OTP modal
+      await signup(formData);
+      // No need for navigation - AuthContext handles showing the OTP modal
     } catch (err: any) {
        // Display the error message from the server if available
        if (err.response && err.response.data) {

@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
   role: { type: String, enum: ['user','owner','admin','facility_owner'], default: 'user' },
   phone: String,
   otp: String,
+  otpExpiresAt: Date, // OTP expiration timestamp
   otpVerified: { type: Boolean, default: false },
   reliabilityScore: { type: Number, default: 80 },
   cancellations: { type: Number, default: 0 },
