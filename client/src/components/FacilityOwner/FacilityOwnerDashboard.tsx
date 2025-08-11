@@ -15,36 +15,17 @@ const FacilityOwnerDashboard: React.FC = () => {
   const getCurrentSection = () => {
     const hash = window.location.hash.replace('#', '');
     if (hash === 'facility-owner') return 'dashboard';
-    if (hash.startsWith('facility-owner/')) {
-      return hash.replace('facility-owner/', '');
-    }
+    if (hash.includes('facility-owner/facilities')) return 'facilities';
+    if (hash.includes('facility-owner/courts')) return 'courts';
+    if (hash.includes('facility-owner/bookings')) return 'bookings';
+    if (hash.includes('facility-owner/time-slots')) return 'time-slots';
+    if (hash.includes('facility-owner/profile')) return 'profile';
     return 'dashboard';
   };
 
   const currentSection = getCurrentSection();
 
-  // Debug section for testing
-  const renderDebugInfo = () => {
-    // Check if we're in development mode by looking for common development indicators
-    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    
-    if (isDevelopment) {
-      return (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <h3 className="text-lg font-semibold text-yellow-800 mb-2">Debug Info</h3>
-          <div className="text-sm text-yellow-700 space-y-1">
-            <p><strong>Current User:</strong> {user?.fullName} ({user?.email})</p>
-            <p><strong>User Role:</strong> {user?.role}</p>
-            <p><strong>Current Section:</strong> {currentSection}</p>
-            <p><strong>URL Hash:</strong> {window.location.hash}</p>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const renderSection = () => {
+  const renderContent = () => {
     switch (currentSection) {
       case 'dashboard':
         return <Dashboard />;
@@ -65,8 +46,7 @@ const FacilityOwnerDashboard: React.FC = () => {
 
   return (
     <FacilityOwnerLayout>
-      {renderDebugInfo()}
-      {renderSection()}
+      {renderContent()}
     </FacilityOwnerLayout>
   );
 };
