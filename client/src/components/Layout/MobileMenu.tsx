@@ -35,8 +35,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
         onClose();
       } 
     },
-    // Only show "My Bookings" for regular users, not facility owners
-    ...(user?.role !== 'facility_owner' ? [{
+    // Only show "My Bookings" for regular users, not facility owners or admins
+    ...(user?.role !== 'facility_owner' && user?.role !== 'admin' ? [{
       icon: Calendar, 
       label: 'My Bookings', 
       href: '/bookings',
@@ -55,6 +55,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
       onClick: (e: React.MouseEvent) => {
         e.preventDefault();
         window.location.hash = 'facility-owner';
+        onClose();
+      }
+    }] : []),
+    // Add admin dashboard link for admins
+    ...(user?.role === 'admin' ? [{
+      icon: BarChart3,
+      label: 'Admin Dashboard',
+      href: '/admin',
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault();
+        window.history.pushState({}, '', '/admin');
+        window.dispatchEvent(new Event('popstate'));
         onClose();
       }
     }] : []),
