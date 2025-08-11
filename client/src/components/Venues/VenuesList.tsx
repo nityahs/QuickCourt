@@ -3,6 +3,7 @@ import { facilitiesAPI } from '../../services/facilities';
 import { Filter, Search } from 'lucide-react';
 import VenueCard from './VenueCard';
 import { Venue } from '../../types';
+import { useSearch } from '../../contexts/SearchContext';
 
 interface VenuesListProps {
   onViewVenue: (venue: Venue) => void;
@@ -13,12 +14,13 @@ const toTitle = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   const qs = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const initialSport = (qs.get('sport') || '').toLowerCase();
-  const initialSearch = qs.get('q') || '';
   const initialMinPrice = qs.get('minPrice') || '';
   const initialMaxPrice = qs.get('maxPrice') || '';
   const initialRating = qs.get('rating') || '';
 
-  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  // Use the shared search context instead of local state
+  const { searchTerm, setSearchTerm } = useSearch();
+  
   const [selectedSport, setSelectedSport] = useState(initialSport);
   const [priceRange, setPriceRange] = useState(
     initialMinPrice || initialMaxPrice
@@ -38,7 +40,7 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (selectedSport) params.set('sport', selectedSport); else params.delete('sport');
-    if (searchTerm.trim()) params.set('q', searchTerm.trim()); else params.delete('q');
+    // searchTerm is now handled by the SearchContext
 
     if (priceRange) {
       const [minStr, maxStr] = priceRange.split('-');
@@ -55,7 +57,7 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
 
     const newUrl = `${window.location.pathname}?${params.toString()}`.replace(/\?$/, '');
     window.history.replaceState({}, '', newUrl);
-  }, [selectedSport, searchTerm, priceRange, minRating]);
+  }, [selectedSport, priceRange, minRating]); // searchTerm removed from dependencies
 
   useEffect(() => {
     setLoading(true);

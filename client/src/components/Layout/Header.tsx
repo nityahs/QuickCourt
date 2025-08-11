@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, X, User, LogOut, Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSearch } from '../../contexts/SearchContext';
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -11,7 +12,18 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, onSignup }) => {
   const { user, logout } = useAuth();
+  const { searchTerm, setSearchTerm } = useSearch();
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Handle search submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      // Navigate to venues page with search query
+      window.history.pushState({}, '', `/venues?q=${encodeURIComponent(searchTerm.trim())}`);
+      window.dispatchEvent(new Event('popstate'));
+    }
+  };
 
   return (
     <header className="backdrop-blur bg-white/70 border-b border-white/60 sticky top-0 z-50">
@@ -82,16 +94,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
 
           {/* Search Bar - Desktop */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="relative w-full">
+            <form onSubmit={handleSearch} className="relative w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search venues..."
                 className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
-            </div>
+            </form>
           </div>
 
           {/* User Menu */}
@@ -213,16 +227,18 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
 
       {/* Mobile Search */}
       <div className="md:hidden px-4 pb-3">
-        <div className="relative">
+        <form onSubmit={handleSearch} className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <input
             type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search venues..."
             className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
-        </div>
+        </form>
       </div>
     </header>
   );
