@@ -41,6 +41,18 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
       inputRefs.current[0].focus();
     }
   }, []);
+  
+  // Auto-submit when all 6 digits are filled
+  useEffect(() => {
+    if (otp.every(digit => digit !== '') && !isLoading && verificationStatus !== 'success') {
+      // Create a small delay to allow the UI to update before submitting
+      const timer = setTimeout(() => {
+        const formEvent = new Event('submit', { bubbles: true, cancelable: true }) as unknown as React.FormEvent;
+        handleSubmit(formEvent);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [otp, isLoading, verificationStatus]);
 
   const handleChange = (index: number, value: string) => {
     // Only allow numbers

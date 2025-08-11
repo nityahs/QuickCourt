@@ -280,7 +280,7 @@ const HeroSection: React.FC = () => {
                         ? `Found ${facilities.length} facilities in your area`
                         : 'No facilities found in this area')
                     : (facilities.length > 0 
-                        ? `Showing ${facilities.length} facilities with location data`
+                        ? `Showing ${facilities.length} facilities`
                         : 'No facilities with location data found')
                   }
                 </p>
