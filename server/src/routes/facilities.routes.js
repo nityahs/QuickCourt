@@ -6,7 +6,7 @@ const r = Router();
 
 // GET list with filters + pagination
 r.get('/', async (req,res)=>{
-  const { sport, q, minPrice, maxPrice, rating, page=1, limit=10, includeAll, ownerId } = req.query;
+  const { sport, q, minPrice, maxPrice, rating, page=1, limit=10, includeAll, ownerId, lat, lng, radius=10 } = req.query;
   const filter = includeAll === 'true' ? {} : { status: 'approved' };
   if (sport) filter.sports = sport;
   if (rating) filter.ratingAvg = { $gte: Number(rating) };
@@ -14,7 +14,26 @@ r.get('/', async (req,res)=>{
   if (q) filter.name = new RegExp(q,'i');
   if (ownerId) filter.ownerId = ownerId;
   
-  const docs = await Facility.find(filter).skip((page-1)*limit).limit(Number(limit)).sort({ highlight:-1, ratingAvg:-1 });
+  let query = Facility.find(filter);
+  
+  // Add geospatial filtering if lat/lng provided
+  if (lat && lng) {
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const radiusKm = parseFloat(radius);
+    
+    // Add geospatial query to find facilities within radius
+    query = query.where('geolocation').near({
+      center: {
+        type: 'Point',
+        coordinates: [longitude, latitude] // MongoDB uses [lng, lat] order
+      },
+      maxDistance: radiusKm * 1000, // Convert km to meters
+      spherical: true
+    });
+  }
+  
+  const docs = await query.skip((page-1)*limit).limit(Number(limit)).sort({ highlight:-1, ratingAvg:-1 });
   const total = await Facility.countDocuments(filter);
   res.json({ data: docs, total });
 });
