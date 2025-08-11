@@ -83,4 +83,31 @@ r.post('/change-password', auth, required(['currentPassword', 'newPassword']), a
   }
 });
 
+r.put('/profile', auth, async (req, res, next) => {
+  try {
+    const { name, fullName, avatar } = req.body;
+    const user = await User.findById(req.user._id);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Update name (accept either name or fullName)
+    if (name || fullName) {
+      user.name = name || fullName;
+    }
+    
+    // Update avatar if provided
+    if (avatar !== undefined) {
+      user.avatar = avatar;
+    }
+    
+    await user.save();
+    
+    // Return updated user without password hash
+    const updatedUser = await User.findById(user._id).select('-passwordHash');
+    res.json(updatedUser);
+  } catch (e) { 
+    next(e); 
+  }
+});
+
 export default r;

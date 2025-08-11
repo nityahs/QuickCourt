@@ -53,6 +53,9 @@ export const authAPI = {
     
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post('/auth/change-password', { currentPassword, newPassword }),
+    
+  updateProfile: (profileData: { name?: string; fullName?: string; avatar?: string }) =>
+    api.put<UserResponse>('/auth/profile', profileData),
 };
 
 // Add a request interceptor to include the token in all requests
