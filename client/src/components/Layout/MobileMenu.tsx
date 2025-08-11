@@ -1,5 +1,6 @@
 import React from 'react';
-import { Home, MapPin, Calendar, User, Settings } from 'lucide-react';
+import { Home, MapPin, Calendar, User, Settings, BarChart3 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -7,6 +8,8 @@ interface MobileMenuProps {
 }
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+  
   if (!isOpen) return null;
 
   const menuItems = [
@@ -32,7 +35,8 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
         onClose();
       } 
     },
-    { 
+    // Only show "My Bookings" for regular users, not facility owners
+    ...(user?.role !== 'facility_owner' ? [{
       icon: Calendar, 
       label: 'My Bookings', 
       href: '/bookings',
@@ -42,7 +46,18 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose }) => {
         window.dispatchEvent(new Event('popstate'));
         onClose();
       } 
-    },
+    }] : []),
+    // Add dashboard link for facility owners
+    ...(user?.role === 'facility_owner' ? [{
+      icon: BarChart3,
+      label: 'Dashboard',
+      href: '/facility-owner',
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault();
+        window.location.hash = 'facility-owner';
+        onClose();
+      }
+    }] : []),
     { 
       icon: User, 
       label: 'Profile', 

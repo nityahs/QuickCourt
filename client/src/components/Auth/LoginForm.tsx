@@ -13,7 +13,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +33,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
 
     try {
       await login(email, password);
-      onClose();
+      
+      // Get the current user after successful login
+      const currentUser = JSON.parse(localStorage.getItem('quickcourt_user') || '{}');
+      
+      // Handle role-based redirection
+      if (currentUser.role === 'facility_owner') {
+        // Redirect facility owners to their dashboard
+        window.location.hash = 'facility-owner';
+        onClose();
+      } else {
+        // Regular users stay on home page
+        onClose();
+      }
     } catch (err: any) {
       // Display the error message from the server if available
       if (err.response && err.response.data) {

@@ -10,9 +10,10 @@ import VenuesList from './components/Venues/VenuesList';
 import VenueDetails from './components/Venues/VenueDetails';
 import BookingForm from './components/Booking/BookingForm';
 import UserProfile from './components/User/UserProfile';
+import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
 import { Venue } from './types';
 
-type AppView = 'home' | 'venues' | 'venue-details' | 'booking' | 'bookings' | 'profile' | 'verify-otp';
+type AppView = 'home' | 'venues' | 'venue-details' | 'booking' | 'bookings' | 'profile' | 'verify-otp' | 'facility-owner';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('home');
@@ -20,7 +21,27 @@ function AppContent() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [showFooter, setShowFooter] = useState(false);
   const { user } = useAuth();
+
+  // Handle scroll to show/hide footer
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      
+      // Show footer when user is near the bottom (within 100px)
+      if (scrollTop + windowHeight >= documentHeight - 100) {
+        setShowFooter(true);
+      } else {
+        setShowFooter(false);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Handle path-based navigation
   useEffect(() => {
@@ -45,6 +66,9 @@ function AppContent() {
         setCurrentView('bookings');
       } else if (path === '/profile') {
         setCurrentView('profile');
+      } else if (path === '/facility-owner') {
+        console.log('Setting current view to facility-owner');
+        setCurrentView('facility-owner');
       } else if (path === '/') {
         setCurrentView('home');
       }
@@ -84,6 +108,9 @@ function AppContent() {
         setCurrentView('bookings');
       } else if (hash === 'profile') {
         setCurrentView('profile');
+      } else if (hash === 'facility-owner') {
+        console.log('Setting current view to facility-owner');
+        setCurrentView('facility-owner');
       }
     };
 
@@ -184,18 +211,60 @@ function AppContent() {
           />
         ) : null;
       case 'bookings':
-        return (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">My Bookings</h1>
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <p className="text-gray-600">Your bookings will appear here.</p>
+        // Show different content for facility owners vs regular users
+        if (user?.role === 'facility_owner') {
+          return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">All Bookings</h1>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <p className="text-gray-600 mb-4">As a facility owner, you can manage all bookings through your dashboard.</p>
+                <button
+                  onClick={() => window.location.hash = 'facility-owner/bookings'}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+              </div>
             </div>
-          </div>
-        );
+          );
+        } else {
+          return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">My Bookings</h1>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <p className="text-gray-600">Your bookings will appear here.</p>
+              </div>
+            </div>
+          );
+        }
       case 'profile':
         return (
           <UserProfile onBack={() => setCurrentView('home')} />
         );
+      case 'facility-owner':
+        // Check if user is logged in and has facility owner role
+        if (!user || user.role !== 'facility_owner') {
+          return (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="text-center">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">Access Denied</h1>
+                <p className="text-lg text-gray-600 mb-6">
+                  You need to be logged in as a facility owner to access this dashboard.
+                </p>
+                <button
+                  onClick={() => {
+                    setAuthMode('login');
+                    setShowAuthModal(true);
+                  }}
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Login as Facility Owner
+                </button>
+              </div>
+            </div>
+          );
+        }
+        return <FacilityOwnerDashboard />;
       default:
         return null;
     }
@@ -231,7 +300,9 @@ function AppContent() {
       />
 
       {/* Footer */}
-      <footer className="bg-gray-800 text-white py-8">
+      <footer className={`bg-gray-800 text-white py-8 transition-all duration-500 ease-in-out ${
+        showFooter ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">QUICKCOURT</h3>

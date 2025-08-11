@@ -36,7 +36,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
             {[
               { label: 'Home', path: '/' },
               { label: 'Venues', path: '/venues' },
-              { label: 'My Bookings', path: '/bookings' },
+              // Remove "My Bookings" for facility owners
+              ...(user?.role !== 'facility_owner' ? [{ label: 'My Bookings', path: '/bookings' }] : []),
+              // Add dashboard link for facility owners
+              ...(user?.role === 'facility_owner' ? [{ label: 'Dashboard', path: '/facility-owner' }] : []),
             ].map((item) => (
               <a
                 key={item.label}
@@ -44,8 +47,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
                 className="group relative px-3 py-2 text-sm font-medium text-gray-700 hover:text-emerald-600"
                 onClick={(e) => {
                   e.preventDefault();
-                  window.history.pushState({}, '', item.path);
-                  window.dispatchEvent(new Event('popstate'));
+                  if (item.path === '/facility-owner') {
+                    window.location.hash = 'facility-owner';
+                  } else {
+                    window.history.pushState({}, '', item.path);
+                    window.dispatchEvent(new Event('popstate'));
+                  }
                 }}
               >
                 {item.label}
@@ -92,6 +99,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
 
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                    {user.role === 'facility_owner' && (
+                      <a
+                        href="/facility-owner"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowUserMenu(false);
+                          window.location.hash = 'facility-owner';
+                        }}
+                      >
+                        Dashboard
+                      </a>
+                    )}
                     <a
                       href="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -104,18 +124,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
                     >
                       Profile
                     </a>
-                    <a
-                      href="/bookings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setShowUserMenu(false);
-                        window.history.pushState({}, '', '/bookings');
-                        window.dispatchEvent(new Event('popstate'));
-                      }}
-                    >
-                      My Bookings
-                    </a>
+                    {/* Only show "My Bookings" for regular users, not facility owners */}
+                    {user.role !== 'facility_owner' && (
+                      <a
+                        href="/bookings"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowUserMenu(false);
+                          window.history.pushState({}, '', '/bookings');
+                          window.dispatchEvent(new Event('popstate'));
+                        }}
+                      >
+                        My Bookings
+                      </a>
+                    )}
                     <button
                       onClick={logout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

@@ -9,7 +9,11 @@ interface UserProfileProps {
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
-  const [activeTab, setActiveTab] = useState<'bookings' | 'profile'>('bookings');
+  const { user, isLoading } = useAuth();
+  
+  // Set default tab based on user role
+  const defaultTab = user?.role === 'facility_owner' ? 'profile' : 'bookings';
+  const [activeTab, setActiveTab] = useState<'bookings' | 'profile'>(defaultTab);
   const [formData, setFormData] = useState({
     fullName: '',
     currentPassword: '',
@@ -22,7 +26,6 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
-  const { user, isLoading } = useAuth();
 
   // Mock bookings data
   const [bookings, setBookings] = useState<Booking[]>([
@@ -213,15 +216,18 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
       {/* Tabs */}
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('bookings')}
-            className={`${activeTab === 'bookings'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            All Bookings
-          </button>
+          {/* Only show bookings tab for regular users */}
+          {user?.role !== 'facility_owner' && (
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`${activeTab === 'bookings'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              My Bookings
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('profile')}
             className={`${activeTab === 'profile'
@@ -237,55 +243,71 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
       {/* Tab content */}
       {activeTab === 'bookings' ? (
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">My Bookings</h2>
-          
-          {bookings.length === 0 ? (
+          {/* Show different content for facility owners vs regular users */}
+          {user?.role === 'facility_owner' ? (
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <p className="text-gray-600">You don't have any bookings yet.</p>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">All Bookings</h2>
+              <p className="text-gray-600 mb-4">As a facility owner, you can manage all bookings through your dashboard.</p>
+              <button
+                onClick={() => window.location.hash = 'facility-owner/bookings'}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Go to Dashboard
+              </button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {bookings.map(booking => (
-                <div key={booking.id} className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        {venueNames[booking.venueId]}
-                      </h3>
-                      <p className="text-gray-600">
-                        {courtDetails[booking.courtId]?.sport} - {courtDetails[booking.courtId]?.name}
-                      </p>
-                      <p className="text-gray-600">
-                        {formatDate(booking.date)} at {formatTime(booking.startTime)}
-                      </p>
-                      <p className="text-gray-600">
-                        Duration: {booking.duration} {booking.duration === 1 ? 'hour' : 'hours'}
-                      </p>
-                      <p className="text-gray-600">
-                        Total: ${booking.totalPrice.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="mt-4 md:mt-0 flex flex-col items-start md:items-end">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                        booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                      </span>
-                      
-                      {booking.status === 'confirmed' && isUpcoming(booking.date) && (
-                        <button
-                          onClick={() => handleCancelBooking(booking.id)}
-                          className="mt-2 text-red-600 hover:text-red-800 text-sm font-medium"
-                        >
-                          Cancel Booking
-                        </button>
-                      )}
-                    </div>
-                  </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">My Bookings</h2>
+              
+              {bookings.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-md p-6 text-center">
+                  <p className="text-gray-600">You don't have any bookings yet.</p>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-4">
+                  {bookings.map(booking => (
+                    <div key={booking.id} className="bg-white rounded-lg shadow-md p-6">
+                      <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {venueNames[booking.venueId]}
+                          </h3>
+                          <p className="text-gray-600">
+                            {courtDetails[booking.courtId]?.sport} - {courtDetails[booking.courtId]?.name}
+                          </p>
+                          <p className="text-gray-600">
+                            {formatDate(booking.date)} at {formatTime(booking.startTime)}
+                          </p>
+                          <p className="text-gray-600">
+                            Duration: {booking.duration} {booking.duration === 1 ? 'hour' : 'hours'}
+                          </p>
+                          <p className="text-gray-600">
+                            Total: ${booking.totalPrice.toFixed(2)}
+                          </p>
+                        </div>
+                        <div className="mt-4 md:mt-0 flex flex-col items-start md:items-end">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                            booking.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                          </span>
+                          
+                          {booking.status === 'confirmed' && isUpcoming(booking.date) && (
+                            <button
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="mt-2 text-red-600 hover:text-red-800 text-sm font-medium"
+                            >
+                              Cancel Booking
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
