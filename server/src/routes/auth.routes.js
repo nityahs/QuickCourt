@@ -47,4 +47,26 @@ r.get('/me', auth, async (req,res)=>{
   res.json(user);
 });
 
+r.post('/change-password', auth, required(['currentPassword', 'newPassword']), async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id);
+    
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isPasswordValid) return res.status(400).json({ error: 'Current password is incorrect' });
+    
+    // Hash and save new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 10);
+    user.passwordHash = newPasswordHash;
+    await user.save();
+    
+    res.json({ message: 'Password updated successfully' });
+  } catch (e) { 
+    next(e); 
+  }
+});
+
 export default r;

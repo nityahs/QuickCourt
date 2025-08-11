@@ -18,6 +18,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    console.log('Login attempt with:', { email });
 
     // Validate email format
     if (!validateEmail(email)) {
@@ -32,7 +33,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
     }
 
     try {
+      console.log('Attempting login...');
       await login(email, password);
+      console.log('Login successful');
+      
+      // Check if user is admin before closing modal
+      const userStr = localStorage.getItem('quickcourt_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        console.log('User role:', user.role);
+        
+        if (user.role === 'admin') {
+          console.log('Admin user detected, redirecting...');
+          // Don't close modal immediately for admin users
+          // Redirection will happen in AuthContext
+          return;
+        }
+      }
+      
       onClose();
     } catch (err: any) {
       // Display the error message from the server if available

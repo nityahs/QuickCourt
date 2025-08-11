@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuickCourt Admin Login Test</title>
+  <script src="/test-admin-login.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .steps {
+      background: #e9f7ef;
+    }
+    .debug {
+      background: #eaf2f8;
+    }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    .danger {
+      background: #e74c3c;
+    }
+    .danger:hover {
+      background: #c0392b;
+    }
+    .success {
+      background: #2ecc71;
+    }
+    .success:hover {
+      background: #27ae60;
+    }
+    pre {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    #console {
+      height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>QuickCourt Admin Login Test</h1>
+  
+  <div class="card steps">
+    <h2>Testing Steps</h2>
+    <ol>
+      <li>Clear your browser's localStorage (see Debug Tools below)</li>
+      <li>Go to the <a href="/" target="_blank">QuickCourt homepage</a></li>
+      <li>Click on Login and enter admin credentials:
+        <ul>
+          <li>Email: admin@gmail.com</li>
+          <li>Password: Pass@123</li>
+        </ul>
+      </li>
+      <li>After login, you should be automatically redirected to the admin dashboard</li>
+      <li>If not redirected, use the "Go to Admin Dashboard" button below</li>
+      <li>Check the console output for debugging information</li>
+    </ol>
+  </div>
+
+  <div class="card debug">
+    <h2>Debug Tools</h2>
+    <button onclick="checkLocalStorage()">Check localStorage</button>
+    <button class="danger" onclick="clearLocalStorage()">Clear localStorage</button>
+    <button class="success" onclick="goToAdmin()">Go to Admin Dashboard</button>
+    <button onclick="goToHome()">Go to Home</button>
+    
+    <h3>Console Output:</h3>
+    <pre id="console"></pre>
+  </div>
+
+  <script>
+    // Console output element
+    const consoleOutput = document.getElementById('console');
+    
+    // Override console.log to display in our custom console
+    const originalLog = console.log;
+    const originalError = console.error;
+    
+    console.log = function() {
+      // Call the original console.log
+      originalLog.apply(console, arguments);
+      
+      // Add to our custom console
+      const args = Array.from(arguments);
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          return JSON.stringify(arg, null, 2);
+        } else {
+          return arg;
+        }
+      }).join(' ');
+      
+      consoleOutput.textContent += message + '\n';
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    };
+    
+    console.error = function() {
+      // Call the original console.error
+      originalError.apply(console, arguments);
+      
+      // Add to our custom console with error styling
+      const args = Array.from(arguments);
+      const message = args.map(arg => {
+        if (typeof arg === 'object') {
+          return JSON.stringify(arg, null, 2);
+        } else {
+          return arg;
+        }
+      }).join(' ');
+      
+      consoleOutput.textContent += 'ERROR: ' + message + '\n';
+      consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    };
+    
+    // Function to check localStorage
+    function checkLocalStorage() {
+      console.log('=== CHECKING LOCAL STORAGE ===');
+      
+      // Check for user data in localStorage
+      const userJson = localStorage.getItem('quickcourt_user');
+      console.log('User data in localStorage:', userJson ? 'Found' : 'Not found');
+      
+      if (userJson) {
+        try {
+          const userData = JSON.parse(userJson);
+          console.log('User data:', userData);
+          console.log('User role:', userData.role);
+          console.log('Is admin:', userData.role === 'admin');
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+      
+      // Check for token in localStorage
+      const token = localStorage.getItem('quickcourt_token');
+      console.log('Auth token in localStorage:', token ? 'Found' : 'Not found');
+      
+      console.log('=== END OF CHECK ===');
+    }
+    
+    // Function to clear localStorage
+    function clearLocalStorage() {
+      localStorage.removeItem('quickcourt_user');
+      localStorage.removeItem('quickcourt_token');
+      localStorage.removeItem('quickcourt_user_id');
+      console.log('localStorage cleared');
+      checkLocalStorage();
+    }
+    
+    // Function to go to admin dashboard
+    function goToAdmin() {
+      window.location.href = '/admin';
+    }
+    
+    // Function to go to home
+    function goToHome() {
+      window.location.href = '/';
+    }
+    
+    // Run initial check
+    console.log('Admin Login Test Page Loaded');
+    checkLocalStorage();
+  </script>
+</body>
+</html>
