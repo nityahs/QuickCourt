@@ -1,0 +1,3 @@
+export const generateICS = ({ title, startISO, endISO, location }) => {
+  return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//QuickCourt//EN\nBEGIN:VEVENT\nUID:${Date.now()}@quickcourt\nDTSTAMP:${startISO.replace(/[-:]/g,'').split('.')[0]}Z\nDTSTART:${startISO.replace(/[-:]/g,'').split('.')[0]}Z\nDTEND:${endISO.replace(/[-:]/g,'').split('.')[0]}Z\nSUMMARY:${title}\nLOCATION:${location}\nEND:VEVENT\nEND:VCALENDAR`;
+};
