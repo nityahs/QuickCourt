@@ -4,24 +4,34 @@ import { auth } from '../lib/jwt.js';
 import { roleGuard } from '../lib/roleGuard.js';
 const r = Router();
 
-r.get('/by-facility/:facilityId', async (req,res)=>{
-  const rows = await Court.find({ facilityId: req.params.facilityId, isActive:true });
-  res.json(rows);
+// GET list with filters
+r.get('/', async (req,res)=>{
+  const { facilityId, sport, isActive } = req.query;
+  const filter = {};
+  if (facilityId) filter.facilityId = facilityId;
+  if (sport) filter.sport = sport;
+  if (isActive !== undefined) filter.isActive = isActive === 'true';
+  const docs = await Court.find(filter).sort({ name: 1 });
+  res.json({ data: docs });
 });
 
-r.post('/', auth, roleGuard('owner'), async (req,res)=>{
-  const doc = await Court.create(req.body);
+// GET single
+r.get('/:id', async (req,res)=>{
+  const doc = await Court.findById(req.params.id);
   res.json(doc);
 });
 
+// POST create (owner)
+r.post('/', auth, roleGuard('owner'), async (req,res)=>{
+  const body = req.body;
+  const doc = await Court.create(body);
+  res.json(doc);
+});
+
+// PUT update (owner)
 r.put('/:id', auth, roleGuard('owner'), async (req,res)=>{
   const doc = await Court.findByIdAndUpdate(req.params.id, req.body, { new:true });
   res.json(doc);
-});
-
-r.delete('/:id', auth, roleGuard('owner'), async (req,res)=>{
-  await Court.findByIdAndDelete(req.params.id);
-  res.json({ ok:true });
 });
 
 export default r;

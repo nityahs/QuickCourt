@@ -6,12 +6,14 @@ const r = Router();
 
 // GET list with filters + pagination
 r.get('/', async (req,res)=>{
-  const { sport, q, minPrice, maxPrice, rating, page=1, limit=10, includeAll } = req.query;
+  const { sport, q, minPrice, maxPrice, rating, page=1, limit=10, includeAll, ownerId } = req.query;
   const filter = includeAll === 'true' ? {} : { status: 'approved' };
   if (sport) filter.sports = sport;
   if (rating) filter.ratingAvg = { $gte: Number(rating) };
   if (minPrice || maxPrice) filter.startingPricePerHour = { $gte: Number(minPrice||0), $lte: Number(maxPrice||1e9) };
   if (q) filter.name = new RegExp(q,'i');
+  if (ownerId) filter.ownerId = ownerId;
+  
   const docs = await Facility.find(filter).skip((page-1)*limit).limit(Number(limit)).sort({ highlight:-1, ratingAvg:-1 });
   const total = await Facility.countDocuments(filter);
   res.json({ data: docs, total });
