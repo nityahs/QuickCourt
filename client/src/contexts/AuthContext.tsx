@@ -14,6 +14,7 @@ interface AuthContextType {
   verifyOtp: (otp: string) => Promise<void>;
   resendOtp: (email?: string) => Promise<void>;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
   isLoading: boolean;
   verificationEmail: string;
 }
@@ -250,6 +251,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      localStorage.setItem('quickcourt_user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -258,6 +267,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       verifyOtp,
       resendOtp,
       logout,
+      updateUser,
       isLoading,
       verificationEmail
     }}>

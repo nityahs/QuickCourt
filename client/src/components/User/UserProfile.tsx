@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { User, Eye, EyeOff, Lock } from 'lucide-react';
+import { User, Eye, EyeOff, Lock, Camera } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validatePassword } from '../../utils/validation';
 import { Booking } from '../../types';
+import { authAPI } from '../../services/auth';
 
 interface UserProfileProps {
   onBack: () => void;
 }
 
 const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, updateUser } = useAuth();
   
-  // Set default tab based on user role
-  const defaultTab = user?.role === 'facility_owner' ? 'profile' : 'bookings';
+  // Set default tab based on user role - admins and facility owners only have profile tab
+  const defaultTab = user?.role === 'admin' || user?.role === 'facility_owner' ? 'profile' : 'bookings';
   const [activeTab, setActiveTab] = useState<'bookings' | 'profile'>(defaultTab);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -20,12 +21,15 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
     newPassword: '',
     confirmPassword: ''
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Mock bookings data
   const [bookings, setBookings] = useState<Booking[]>([
@@ -101,8 +105,40 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
         ...prev,
         fullName: user.fullName
       }));
+      // Set current avatar if exists
+      if (user.avatar) {
+        setAvatarPreview(user.avatar);
+      }
     }
   }, [user]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file');
+        return;
+      }
+      
+      // Validate file size (max 2MB for better API performance)
+      if (file.size > 2 * 1024 * 1024) {
+        setError('Image size must be less than 2MB');
+        return;
+      }
+
+      setAvatarFile(file);
+      
+      // Create preview and base64 for upload
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Result = e.target?.result as string;
+        setAvatarPreview(base64Result);
+      };
+      reader.readAsDataURL(file);
+      setError('');
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -135,44 +171,93 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
     }
   };
 
-  const handleProfileUpdate = (e: React.FormEvent) => {
+  const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsUpdating(true);
 
-    // Validate full name
-    if (formData.fullName.trim().length < 3) {
-      setError('Full name must be at least 3 characters');
-      return;
-    }
-
-    // If changing password
-    if (formData.newPassword) {
-      // Validate current password (in a real app, this would be checked against the stored password)
-      if (!formData.currentPassword) {
-        setError('Please enter your current password');
+    try {
+      // Validate full name
+      if (formData.fullName.trim().length < 3) {
+        setError('Full name must be at least 3 characters');
         return;
       }
 
-      // Validate new password
-      const passwordValidation = validatePassword(formData.newPassword);
-      if (!passwordValidation.isValid) {
-        setError(passwordValidation.message || 'Password does not meet requirements');
+      // Check if there are any changes to make
+      const hasNameChange = formData.fullName !== user?.fullName;
+      const hasAvatarChange = avatarFile || (avatarPreview !== user?.avatar);
+      const hasPasswordChange = formData.newPassword;
+
+      if (!hasNameChange && !hasAvatarChange && !hasPasswordChange) {
+        setError('No changes to save');
         return;
       }
 
-      // Confirm passwords match
-      if (formData.newPassword !== formData.confirmPassword) {
-        setError('New passwords do not match');
-        return;
-      }
-    }
+      // Update profile (name and avatar)
+      if (hasNameChange || hasAvatarChange) {
+        const profileData: { fullName?: string; avatar?: string } = {};
+        
+        if (hasNameChange) {
+          profileData.fullName = formData.fullName;
+        }
+        
+        if (hasAvatarChange) {
+          profileData.avatar = avatarPreview || '';
+        }
 
-    // Simulate API call to update profile
-    setTimeout(() => {
-      // Update user data in a real app
+        const response = await authAPI.updateProfile(profileData);
+        const updatedUserData = response.data;
+        
+        // Update auth context with new user data
+        updateUser({
+          fullName: updatedUserData.name,
+          avatar: updatedUserData.avatar
+        });
+      }
+
+      // Update password if provided
+      if (hasPasswordChange) {
+        // Validate current password
+        if (!formData.currentPassword) {
+          setError('Please enter your current password');
+          return;
+        }
+
+        // Validate new password
+        const passwordValidation = validatePassword(formData.newPassword);
+        if (!passwordValidation.isValid) {
+          setError(passwordValidation.message || 'Password does not meet requirements');
+          return;
+        }
+
+        // Confirm passwords match
+        if (formData.newPassword !== formData.confirmPassword) {
+          setError('New passwords do not match');
+          return;
+        }
+
+        await authAPI.changePassword(formData.currentPassword, formData.newPassword);
+        
+        // Clear password fields after successful update
+        setFormData(prev => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        }));
+      }
+
       setSuccess('Profile updated successfully');
-    }, 1000);
+      setAvatarFile(null); // Clear the file after successful upload
+      
+    } catch (error: any) {
+      console.error('Profile update error:', error);
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to update profile';
+      setError(errorMessage);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleCancelBooking = (bookingId: string) => {
@@ -203,21 +288,19 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={onBack}
-          className="text-blue-600 hover:text-blue-800 font-medium"
+          className="text-gray-800 hover:text-gray-900 font-medium"
         >
           Back to Home
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          {/* Only show bookings tab for regular users */}
-          {user?.role !== 'facility_owner' && (
+      {/* Tabs - only show tabs if user is not admin and not facility owner */}
+      {user?.role !== 'admin' && user?.role !== 'facility_owner' && (
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('bookings')}
               className={`${activeTab === 'bookings'
@@ -227,36 +310,24 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
             >
               My Bookings
             </button>
-          )}
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`${activeTab === 'profile'
-              ? 'border-blue-500 text-blue-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            Edit Profile
-          </button>
-        </nav>
-      </div>
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`${activeTab === 'profile'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Edit Profile
+            </button>
+          </nav>
+        </div>
+      )}
 
       {/* Tab content */}
-      {activeTab === 'bookings' ? (
+      {activeTab === 'bookings' && user?.role !== 'admin' && user?.role !== 'facility_owner' ? (
         <div>
-          {/* Show different content for facility owners vs regular users */}
-          {user?.role === 'facility_owner' ? (
-            <div className="bg-white rounded-lg shadow-md p-6 text-center">
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">All Bookings</h2>
-              <p className="text-gray-600 mb-4">As a facility owner, you can manage all bookings through your dashboard.</p>
-              <button
-                onClick={() => window.location.hash = 'facility-owner/bookings'}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Go to Dashboard
-              </button>
-            </div>
-          ) : (
-            <div>
+          {/* This section is only for regular users */}
+          <div>
               <h2 className="text-xl font-semibold text-gray-800 mb-4">My Bookings</h2>
               
               {bookings.length === 0 ? (
@@ -308,15 +379,47 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
                   ))}
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       ) : (
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Edit Profile</h2>
           
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-gray-100 rounded-lg shadow-md p-6">
             <form onSubmit={handleProfileUpdate} className="space-y-6">
+              {/* Avatar Upload */}
+              <div className="flex flex-col items-center space-y-4">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                    {avatarPreview ? (
+                      <img 
+                        src={avatarPreview} 
+                        alt="Profile avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-16 h-16 text-gray-400" />
+                    )}
+                  </div>
+                  <label 
+                    htmlFor="avatar-upload" 
+                    className="absolute bottom-0 right-0 bg-gray-800 rounded-full p-2 cursor-pointer hover:bg-gray-900 transition-colors shadow-lg"
+                  >
+                    <Camera className="w-4 h-4 text-white" />
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-sm font-medium text-gray-700">Profile Picture</h3>
+                  <p className="text-xs text-gray-500">Click the camera icon to upload</p>
+                </div>
+              </div>
+
               {/* Full Name */}
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
@@ -451,19 +554,19 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
               </div>
 
               {error && (
-                <div className="text-red-600 text-sm">{error}</div>
+                <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">{error}</div>
               )}
 
               {success && (
-                <div className="text-green-600 text-sm">{success}</div>
+                <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg border border-green-200">{success}</div>
               )}
 
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading || isUpdating}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Updating...' : 'Update Profile'}
+                {isUpdating ? 'Updating...' : 'Update Profile'}
               </button>
             </form>
           </div>
