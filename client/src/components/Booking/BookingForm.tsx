@@ -145,10 +145,41 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     }
   };
 
+
   const handlePaymentError = (error: string) => {
     setBookingError(error);
     setIsSubmitting(false);
   };
+
+  // Load available time slots for selected court + date
+  useEffect(() => {
+    let ignore = false;
+    if (!selectedCourt || !selectedDate) return;
+    (async () => {
+      try {
+        const { data } = await http.get(`/slots/${selectedCourt}`, { params: { date: selectedDate } });
+        if (!ignore) {
+          const avail = (data || []).filter((s:any) => !s.isBlocked && !s.isBooked);
+          // map available slots if needed in future
+          const times = Array.from(new Set(avail.map((s:any) => s.start))) as string[];
+          times.sort();
+          setTimeSlots(times);
+          // Only set selected time if there are available slots and current selection is not in the list
+          if (times.length && !times.includes(selectedTime)) {
+            setSelectedTime(times[0]);
+          } else if (times.length === 0) {
+            // Clear selected time if no slots available
+            setSelectedTime('');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+        setTimeSlots([]);
+      }
+    })();
+    return () => { ignore = true; };
+  }, [selectedCourt, selectedDate, selectedTime]);
+
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
@@ -302,6 +333,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Court
                 </label>
+<<<<<<<<< Temporary merge branch 1
+                <select
+                  value={selectedCourt}
+                  onChange={(e) => setSelectedCourt(e.target.value)}
+                  className="block w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={courts.length === 0}
+                >
+                  {courts.length === 0 ? (
+                    <option value="">No courts available</option>
+                  ) : (
+                    courts.map(court => (
+                      <option key={court._id} value={court._id}>{court.name}</option>
+                    ))
+                  )}
+                </select>
+                {courts.length === 0 && (
+                  <p className="mt-1 text-sm text-red-600">No courts available for this venue</p>
+=========
                 {courts.length > 0 ? (
                   <select
                     value={selectedCourt}
@@ -318,6 +367,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                   <div className="block w-full px-3 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
                     {selectedSport ? `No courts available for ${selectedSport}` : 'Please select a sport first'}
                   </div>
+>>>>>>>>> Temporary merge branch 2
                 )}
               </div>
 
@@ -329,8 +379,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
 
               <button
                 onClick={handleBooking}
+<<<<<<<<< Temporary merge branch 1
+                disabled={isSubmitting || !selectedCourt || !selectedTime || timeSlots.length === 0}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
+=========
                 disabled={isSubmitting || !selectedCourt || timeSlots.length === 0}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-3 px-4 rounded-md font-medium flex items-center justify-center"
+
+
               >
                 {isSubmitting ? (
                   'Creating Booking...'
