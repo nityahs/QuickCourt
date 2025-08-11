@@ -15,6 +15,12 @@ r.get('/', async (req,res)=>{
   res.json({ data: docs });
 });
 
+// GET by facility
+r.get('/by-facility/:facilityId', async (req,res)=>{
+  const docs = await Court.find({ facilityId: req.params.facilityId, isActive: true }).sort({ name: 1 });
+  res.json(docs);
+});
+
 // GET single
 r.get('/:id', async (req,res)=>{
   const doc = await Court.findById(req.params.id);

@@ -41,7 +41,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(morgan('dev'));
 
 app.get('/', (req, res) => res.json({ ok: true, service: 'quickcourt' }));

@@ -19,6 +19,7 @@ interface AuthContextType {
   setShowOtpModal: (show: boolean) => void;
   setVerificationEmail: (email: string) => void;
   setReturnPath: (path: string) => void;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -186,6 +187,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Function to update user data (for profile updates)
+  const updateUser = (userData: Partial<User>) => {
+    if (!user) return;
+    
+    setUser({
+      ...user,
+      ...userData
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -201,6 +212,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setShowOtpModal,
         setVerificationEmail,
         setReturnPath,
+        updateUser,
       }}
     >
       {children}
