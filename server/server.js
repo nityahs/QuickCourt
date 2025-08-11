@@ -16,6 +16,7 @@ import couponsRoutes from './src/routes/coupons.routes.js';
 import adminRoutes from './src/routes/admin.routes.js';
 import integrationsRoutes from './src/routes/integrations.routes.js';
 import statsRoutes from './src/routes/stats.routes.js';
+import debugRoutes from './src/routes/debug.routes.js';
 import { initSocket } from './src/ws/socket.js';
 
 dotenv.config();
@@ -55,6 +56,7 @@ app.use('/api/coupons', couponsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/integrations', integrationsRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/debug', debugRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);
