@@ -9,6 +9,22 @@ interface Facility {
   _id: string;
   name: string;
   address: string;
+  geolocation?: {
+    lat?: number;
+    lng?: number;
+    coordinates?: [number, number];
+  };
+  lat?: number;
+  lng?: number;
+  sports: string[];
+  startingPricePerHour: number;
+  ratingAvg: number;
+}
+
+interface NormalizedFacility {
+  _id: string;
+  name: string;
+  address: string;
   geolocation: {
     lat: number;
     lng: number;
@@ -25,7 +41,7 @@ const HeroSection: React.FC = () => {
     address: string;
   } | null>(null);
   const [selectedDate, setSelectedDate] = useState('');
-  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [facilities, setFacilities] = useState<NormalizedFacility[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
@@ -39,28 +55,79 @@ const HeroSection: React.FC = () => {
 
   const handleSearch = async (locationOverride?: { lat: number; lng: number; address: string }) => {
     const locationToSearch = locationOverride || selectedLocation;
-    if (!locationToSearch) return;
-
+    
     console.log('Searching for facilities near:', locationToSearch);
     setIsLoading(true);
     try {
-      // Search for facilities near the selected location
-      const response = await facilitiesAPI.getAll({
-        lat: locationToSearch.lat,
-        lng: locationToSearch.lng,
-        radius: 10, // 10km radius
-        page: 1,
-        limit: 50
-      });
+      let response;
+      
+      if (locationToSearch) {
+        // Search for facilities near the selected location
+        response = await facilitiesAPI.getAll({
+          lat: locationToSearch.lat,
+          lng: locationToSearch.lng,
+          radius: 10, // 10km radius
+          page: 1,
+          limit: 50
+        });
+      } else {
+        // Get all facilities when no location is selected
+        response = await facilitiesAPI.getAll({
+          page: 1,
+          limit: 50
+        });
+      }
       
       console.log('API Response:', response.data);
+      console.log('Total facilities returned:', response.data.data.length);
       
-      // Filter facilities that have geolocation data
-      const facilitiesWithLocation = response.data.data.filter(
-        (facility: Facility) => facility.geolocation?.lat && facility.geolocation?.lng
-      );
+      // Filter facilities that have geolocation data - handle different structures
+      const facilitiesWithLocation = response.data.data.filter((facility: Facility) => {
+        // Check for different possible geolocation structures
+        const geo = facility.geolocation;
+        console.log('Facility:', facility.name, 'Geolocation:', geo);
+        
+        if (!geo) return false;
+        
+        // Structure 1: { lat: number, lng: number }
+        if (geo.lat && geo.lng) return true;
+        
+        // Structure 2: { coordinates: [lng, lat] }
+        if (geo.coordinates && Array.isArray(geo.coordinates) && geo.coordinates.length === 2) return true;
+        
+        // Structure 3: Direct lat/lng properties
+        if (facility.lat && facility.lng) return true;
+        
+        return false;
+      }).map((facility: Facility): NormalizedFacility => {
+        // Normalize the geolocation structure
+        const geo = facility.geolocation || {};
+        let lat, lng;
+        
+        if (geo.lat && geo.lng) {
+          lat = geo.lat;
+          lng = geo.lng;
+        } else if (geo.coordinates && Array.isArray(geo.coordinates)) {
+          lng = geo.coordinates[0];
+          lat = geo.coordinates[1];
+        } else if (facility.lat && facility.lng) {
+          lat = facility.lat;
+          lng = facility.lng;
+        }
+        
+        return {
+          _id: facility._id,
+          name: facility.name,
+          address: facility.address,
+          geolocation: { lat: lat!, lng: lng! },
+          sports: facility.sports,
+          startingPricePerHour: facility.startingPricePerHour,
+          ratingAvg: facility.ratingAvg
+        };
+      });
       
       console.log('Facilities with location:', facilitiesWithLocation);
+      console.log('Number of facilities with location:', facilitiesWithLocation.length);
       setFacilities(facilitiesWithLocation);
     } catch (error) {
       console.error('Error fetching facilities:', error);
@@ -77,7 +144,7 @@ const HeroSection: React.FC = () => {
     setShowMap(false);
   };
 
-  const handleFacilityClick = (facility: Facility) => {
+  const handleFacilityClick = (facility: NormalizedFacility) => {
     // You can navigate to facility details page here
     console.log('Facility clicked:', facility);
   };
@@ -118,7 +185,7 @@ const HeroSection: React.FC = () => {
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
               <div className="relative">
-                <LocationSearch onLocationSelect={handleLocationSelect} placeholder="Search location..." />
+                <LocationSearch onLocationSelect={handleLocationSelect} placeholder="Search location" />
               </div>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -131,7 +198,7 @@ const HeroSection: React.FC = () => {
               </div>
               <button 
                 onClick={() => handleSearch()}
-                disabled={!selectedLocation || isLoading}
+                disabled={isLoading}
                 className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-semibold flex items-center justify-center shadow-sporty transition-all"
               >
                 {isLoading ? (
@@ -164,6 +231,30 @@ const HeroSection: React.FC = () => {
                 </button>
               </motion.div>
             )}
+
+            {/* Show all facilities button */}
+            {!selectedLocation && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-4 text-center"
+              >
+                <button
+                  onClick={() => {
+                    if (showMap) {
+                      setShowMap(false);
+                      setFacilities([]);
+                    } else {
+                      setShowMap(true);
+                      handleSearch();
+                    }
+                  }}
+                  className="text-emerald-200 hover:text-white transition-colors text-sm underline"
+                >
+                  {showMap ? 'Close Map' : 'Show all facilities on map'}
+                </button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
       </div>
@@ -181,12 +272,16 @@ const HeroSection: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               <div className="mb-6">
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                  🗺️ Facilities Near You
+                  🗺️ {selectedLocation ? 'Facilities Near You' : 'All Facilities'}
                 </h2>
                 <p className="text-gray-600 text-lg">
-                  {facilities.length > 0 
-                    ? `Found ${facilities.length} facilities in your area`
-                    : 'No facilities found in this area'
+                  {selectedLocation 
+                    ? (facilities.length > 0 
+                        ? `Found ${facilities.length} facilities in your area`
+                        : 'No facilities found in this area')
+                    : (facilities.length > 0 
+                        ? `Showing ${facilities.length} facilities with location data`
+                        : 'No facilities with location data found')
                   }
                 </p>
               </div>
@@ -194,7 +289,7 @@ const HeroSection: React.FC = () => {
               <div className="border-2 border-gray-200 rounded-lg overflow-hidden shadow-lg">
                 <FacilitiesMap
                   facilities={facilities}
-                  center={selectedLocation || { lat: 20.5937, lng: 78.9629 }}
+                  center={selectedLocation || { lat: 23.5937, lng: 78.9629 }} // Center of India
                   onFacilityClick={handleFacilityClick}
                 />
               </div>

@@ -52,12 +52,12 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (query.trim()) {
+      if (query.trim() && query.length > 2) {
         searchLocation(query);
       } else {
         setSuggestions([]);
       }
-    }, 300);
+    }, 500); // Increased debounce time for better performance
 
     return () => clearTimeout(timeoutId);
   }, [query]);
