@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, MapPin, Clock, Star, Wifi, Car, Coffee, Shield, Book, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Star, Wifi, Car, Coffee, Shield, Book, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 import { Venue } from '../../types';
 import { reviewsAPI } from '../../services/reviews';
 import { useAuth } from '../../contexts/AuthContext';
 import http from '../../services/http';
 import { motion, AnimatePresence } from 'framer-motion';
+import VenueMap from './VenueMap';
 
 interface VenueDetailsProps {
   venue: Venue;
@@ -22,6 +23,22 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
   const [newReview, setNewReview] = useState<{ rating: number; comment: string }>({ rating: 5, comment: '' });
   const [submitting, setSubmitting] = useState(false);
   const { user } = useAuth();
+
+  // Debug: Log venue data
+  console.log('VenueDetails - Venue data:', venue);
+  console.log('VenueDetails - Geolocation:', venue.geolocation);
+
+  const openInGoogleMaps = () => {
+    if (venue.geolocation?.lat && venue.geolocation?.lng) {
+      const url = `https://www.google.com/maps?q=${venue.geolocation.lat},${venue.geolocation.lng}`;
+      window.open(url, '_blank');
+    } else {
+      // Fallback to address search if no coordinates
+      const encodedAddress = encodeURIComponent(venue.address);
+      const url = `https://www.google.com/maps/search/${encodedAddress}`;
+      window.open(url, '_blank');
+    }
+  };
 
   const amenityIcons: { [key: string]: React.ReactNode } = {
     'Parking': <Car size={16} />,
@@ -195,6 +212,29 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
             </div>
           </div>
 
+          {/* Location Map */}
+          {venue.geolocation && (
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Location</h2>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <VenueMap venue={venue} height="h-64" />
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <div className="flex items-center text-gray-600">
+                  <MapPin size={16} className="mr-2" />
+                  <span className="text-sm">{venue.address}</span>
+                </div>
+                <button
+                  onClick={openInGoogleMaps}
+                  className="flex items-center text-emerald-600 hover:text-emerald-700 text-sm font-medium transition-colors"
+                >
+                  <ExternalLink size={14} className="mr-1" />
+                  Open in Google Maps
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* About Venue */}
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">About Venue</h2>
@@ -302,9 +342,32 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-gray-900 mb-2">Location Map</h3>
-                <div className="bg-gray-100 h-32 rounded-md flex items-center justify-center">
-                  <span className="text-gray-500">Map View</span>
-                </div>
+                {venue.geolocation ? (
+                  <>
+                    <VenueMap venue={venue} height="h-40" />
+                    <button
+                      onClick={openInGoogleMaps}
+                      className="w-full mt-3 flex items-center justify-center text-emerald-600 hover:text-emerald-700 text-sm font-medium transition-colors"
+                    >
+                      <ExternalLink size={14} className="mr-1" />
+                      Open in Google Maps
+                    </button>
+                  </>
+                ) : (
+                  <div className="bg-gray-100 h-40 rounded-md flex items-center justify-center">
+                    <div className="text-center">
+                      <MapPin size={24} className="text-gray-400 mx-auto mb-2" />
+                      <span className="text-gray-500 text-sm">Location not available</span>
+                      <button
+                        onClick={openInGoogleMaps}
+                        className="w-full mt-2 flex items-center justify-center text-emerald-600 hover:text-emerald-700 text-xs font-medium transition-colors"
+                      >
+                        <ExternalLink size={12} className="mr-1" />
+                        Search in Google Maps
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

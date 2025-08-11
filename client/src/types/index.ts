@@ -13,6 +13,10 @@ export interface Venue {
   description: string;
   address: string;
   location: string;
+  geolocation?: {
+    lat: number;
+    lng: number;
+  };
   sportTypes: string[];
   startingPrice: number;
   rating: number;
