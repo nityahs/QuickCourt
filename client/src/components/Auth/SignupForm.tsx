@@ -64,8 +64,20 @@ const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin, onClose }) => 
       
       // Redirect to OTP verification page
       window.location.hash = 'verify-otp';
-    } catch (err) {
-      setError('Signup failed. Please try again.');
+    } catch (err: any) {
+       // Display the error message from the server if available
+       if (err.response && err.response.data) {
+         if (err.response.data.error) {
+           setError(err.response.data.error);
+         } else if (err.response.data.message) {
+           setError(err.response.data.message);
+         } else {
+           setError('Signup failed. Please try again.');
+         }
+       } else {
+         setError('Signup failed. Please try again.');
+       }
+       console.error('Signup error:', err);
     }
   };
 

@@ -34,8 +34,20 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
     try {
       await login(email, password);
       onClose();
-    } catch (err) {
-      setError('Invalid email or password');
+    } catch (err: any) {
+      // Display the error message from the server if available
+      if (err.response && err.response.data) {
+        if (err.response.data.error) {
+          setError(err.response.data.error);
+        } else if (err.response.data.message) {
+          setError(err.response.data.message);
+        } else {
+          setError('Invalid email or password. Please try again.');
+        }
+      } else {
+        setError('Invalid email or password. Please try again.');
+      }
+      console.error('Login error:', err);
     }
   };
 

@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
+import { authAPI, UserResponse } from '../services/auth';
+
+// Token storage key
+const TOKEN_KEY = 'quickcourt_token';
+const USER_ID_KEY = 'quickcourt_user_id';
 
 interface AuthContextType {
   user: User | null;
@@ -32,33 +37,77 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [verificationEmail, setVerificationEmail] = useState<string>('');
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('quickcourt_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    const loadUser = async () => {
+      try {
+        // Check for stored token
+        const token = localStorage.getItem(TOKEN_KEY);
+        
+        if (token) {
+          // Get user profile from server
+          const userResponse = await authAPI.getProfile(token);
+          const userData = userResponse.data;
+          
+          // Convert server user model to client user model
+          const user: User = {
+            id: userData._id,
+            email: userData.email,
+            fullName: userData.name,
+            role: userData.role as User['role'],
+            isVerified: userData.otpVerified,
+            avatar: userData.avatar
+          };
+          
+          setUser(user);
+          localStorage.setItem('quickcourt_user', JSON.stringify(user));
+        } else {
+          // Fallback to stored user if no token (for backward compatibility)
+          const storedUser = localStorage.getItem('quickcourt_user');
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+        // Clear potentially invalid data
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('quickcourt_user');
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadUser();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the login API
+      const response = await authAPI.login(email, password);
+      const { token } = response.data;
       
-      // Mock user data
-      const mockUser: User = {
-        id: '1',
-        email,
-        fullName: 'John Doe',
-        role: 'user',
-        isVerified: true,
-        avatar: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=150'
+      // Store the token
+      localStorage.setItem(TOKEN_KEY, token);
+      
+      // Get user profile
+      const userResponse = await authAPI.getProfile(token);
+      const userData = userResponse.data;
+      
+      // Convert server user model to client user model
+      const user: User = {
+        id: userData._id,
+        email: userData.email,
+        fullName: userData.name,
+        role: userData.role as User['role'],
+        isVerified: userData.otpVerified,
+        avatar: userData.avatar
       };
       
-      setUser(mockUser);
-      localStorage.setItem('quickcourt_user', JSON.stringify(mockUser));
+      setUser(user);
+      localStorage.setItem('quickcourt_user', JSON.stringify(user));
     } catch (error) {
+      console.error('Login error:', error);
       throw new Error('Login failed');
     } finally {
       setIsLoading(false);
@@ -68,11 +117,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signup = async (userData: Partial<User> & { password: string }) => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the signup API
+      const response = await authAPI.signup(
+        userData.fullName!, 
+        userData.email!, 
+        userData.password, 
+        userData.role || 'user'
+      );
       
+      // Store the userId for OTP verification
+      const { userId } = response.data;
+      localStorage.setItem(USER_ID_KEY, userId);
+      
+      // Create a temporary user object
       const newUser: User = {
-        id: Date.now().toString(),
+        id: userId,
         email: userData.email!,
         fullName: userData.fullName!,
         role: userData.role || 'user',
@@ -83,9 +142,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(newUser);
       localStorage.setItem('quickcourt_user', JSON.stringify(newUser));
       
+      // Store the email for verification purposes
+      setVerificationEmail(userData.email!);
+      
       // Return the user for further processing
       return newUser;
     } catch (error) {
+      console.error('Signup error:', error);
       throw new Error('Signup failed');
     } finally {
       setIsLoading(false);
@@ -95,25 +158,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem('quickcourt_user');
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_ID_KEY);
   };
 
   const verifyOtp = async (otp: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Get the userId from storage
+      const userId = localStorage.getItem(USER_ID_KEY);
       
-      // In a real app, this would validate the OTP with the backend
-      if (user) {
-        const verifiedUser: User = {
-          ...user,
-          isVerified: true
-        };
-        
-        setUser(verifiedUser);
-        localStorage.setItem('quickcourt_user', JSON.stringify(verifiedUser));
+      if (!userId) {
+        throw new Error('User ID not found');
       }
+      
+      // Call the verify OTP API
+      const response = await authAPI.verifyOtp(userId, otp);
+      const { token } = response.data;
+      
+      // Store the token
+      localStorage.setItem(TOKEN_KEY, token);
+      
+      // Get user profile
+      const userResponse = await authAPI.getProfile(token);
+      const userData = userResponse.data;
+      
+      // Convert server user model to client user model
+      const verifiedUser: User = {
+        id: userData._id,
+        email: userData.email,
+        fullName: userData.name,
+        role: userData.role as User['role'],
+        isVerified: true,
+        avatar: userData.avatar
+      };
+      
+      setUser(verifiedUser);
+      localStorage.setItem('quickcourt_user', JSON.stringify(verifiedUser));
     } catch (error) {
+      console.error('OTP verification error:', error);
       throw new Error('OTP verification failed');
     } finally {
       setIsLoading(false);
@@ -123,11 +206,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const resendOtp = async (email?: string): Promise<void> => {
     setIsLoading(true);
     try {
-      // Simulate API call
+      // In a real implementation, we would have an API endpoint to resend OTP
+      // For now, we'll just simulate success
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // In a real app, this would trigger the backend to send a new OTP
-      // For now, we just simulate success
       const targetEmail = email || verificationEmail || user?.email;
       if (!targetEmail) {
         throw new Error('No email provided for OTP resend');
@@ -136,6 +218,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Store the email for verification purposes
       setVerificationEmail(targetEmail);
     } catch (error) {
+      console.error('Resend OTP error:', error);
       throw new Error('Failed to resend OTP');
     } finally {
       setIsLoading(false);

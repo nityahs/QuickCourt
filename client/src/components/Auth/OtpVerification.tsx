@@ -90,8 +90,20 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
       await verifyOtp(otpValue);
       // For demo purposes, any 6-digit code is accepted
       onVerificationComplete();
-    } catch (err) {
-      setError('Invalid verification code. Please try again.');
+    } catch (err: any) {
+       // Display the error message from the server if available
+       if (err.response && err.response.data) {
+         if (err.response.data.error) {
+           setError(err.response.data.error);
+         } else if (err.response.data.message) {
+           setError(err.response.data.message);
+         } else {
+           setError('Invalid verification code. Please try again.');
+         }
+       } else {
+         setError('Invalid verification code. Please try again.');
+       }
+       console.error('OTP verification error:', err);
     }
   };
 
@@ -104,8 +116,20 @@ const OtpVerification: React.FC<OtpVerificationProps> = ({
       await resendOtp(email);
       // Show success message
       setError('A new verification code has been sent to your email');
-    } catch (err) {
-      setError('Failed to resend verification code. Please try again.');
+    } catch (err: any) {
+       // Display the error message from the server if available
+       if (err.response && err.response.data) {
+         if (err.response.data.error) {
+           setError(err.response.data.error);
+         } else if (err.response.data.message) {
+           setError(err.response.data.message);
+         } else {
+           setError('Failed to resend verification code. Please try again.');
+         }
+       } else {
+         setError('Failed to resend verification code. Please try again.');
+       }
+       console.error('Resend OTP error:', err);
       setResendDisabled(false);
       setCountdown(0);
     }
