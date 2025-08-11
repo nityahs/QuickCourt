@@ -8,15 +8,16 @@ interface AdminLayoutProps {
 }
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children, currentPage }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if not admin
   React.useEffect(() => {
+    if (isLoading) return;
     if (!user || user.role !== 'admin') {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [user, isLoading, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -41,6 +42,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, currentPage }) => {
               <li key={item.path}>
                 <a
                   href={item.path}
+                  onClick={(e) => { e.preventDefault(); navigate(item.path); }}
                   className={`block py-3 px-4 ${currentPage === item.name.toLowerCase() ? 'bg-indigo-900' : 'hover:bg-indigo-700'}`}
                 >
                   {item.name.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail } from '../../utils/validation';
 
@@ -13,71 +13,32 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, isLoading, user } = useAuth();
+  const { login, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    console.log('Login attempt with:', { email });
 
-    // Validate email format
     if (!validateEmail(email)) {
       setError('Please enter a valid email address');
       return;
     }
 
-    // Validate password is not empty
     if (!password.trim()) {
       setError('Please enter your password');
       return;
     }
 
     try {
-      console.log('Attempting login...');
       await login(email, password);
-      
-      // Get the current user after successful login
-      const currentUser = JSON.parse(localStorage.getItem('quickcourt_user') || '{}');
-      
-      // Handle role-based redirection
-      if (currentUser.role === 'facility_owner') {
-        // Redirect facility owners to their dashboard
-        window.location.hash = 'facility-owner';
-        onClose();
-      } else {
-        // Regular users stay on home page
-        console.log('Login successful');
-      
-      // Check if user is admin before closing modal
-      const userStr = localStorage.getItem('quickcourt_user');
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        console.log('User role:', user.role);
-        
-        if (user.role === 'admin') {
-          console.log('Admin user detected, redirecting...');
-          // Don't close modal immediately for admin users
-          // Redirection will happen in AuthContext
-          return;
-        }
-      }
-      
       onClose();
-      }
     } catch (err: any) {
-      // Display the error message from the server if available
-      if (err.response && err.response.data) {
-        if (err.response.data.error) {
-          setError(err.response.data.error);
-        } else if (err.response.data.message) {
-          setError(err.response.data.message);
-        } else {
-          setError('Invalid email or password. Please try again.');
-        }
+      const message = err?.response?.data?.error || err?.response?.data?.message || 'Invalid email or password. Please try again.';
+      if (/banned/i.test(message)) {
+        setError('You have been banned');
       } else {
-        setError('Invalid email or password. Please try again.');
+        setError(message);
       }
-      console.error('Login error:', err);
     }
   };
 
@@ -141,7 +102,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToSignup, onClose }) => {
         </div>
 
         {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
+          <div className={`text-sm text-center ${/banned/i.test(error) ? 'text-red-700' : 'text-red-600'}`}>
+            {(/banned/i.test(error)) ? (
+              <div className="flex items-center justify-center gap-2">
+                <ShieldAlert size={16} />
+                <span>You have been banned</span>
+              </div>
+            ) : (
+              error
+            )}
+          </div>
         )}
 
         <div className="flex items-center justify-between mb-4">

@@ -39,60 +39,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        console.log('AuthContext: Loading user profile');
-        
-        // First check for stored user data (faster than API call)
-        const storedUserJson = localStorage.getItem('quickcourt_user');
-        let storedUser = null;
-        
-        if (storedUserJson) {
-          try {
-            storedUser = JSON.parse(storedUserJson);
-            console.log('AuthContext: Found user in localStorage:', storedUser);
-            // Set user immediately from localStorage for faster UI rendering
-            setUser(storedUser);
-          } catch (error) {
-            console.error('AuthContext: Error parsing stored user:', error);
-          }
-        }
-        
-        // Check for stored token to validate/refresh user data
+        // Check for stored token
         const token = localStorage.getItem(TOKEN_KEY);
         
         if (token) {
-          console.log('AuthContext: Found token, fetching fresh user data');
-          try {
-            // Get user profile from server
-            const userResponse = await authAPI.getProfile(token);
-            const userData = userResponse.data;
-            
-            // Convert server user model to client user model
-            const user: User = {
-              id: userData._id,
-              email: userData.email,
-              fullName: userData.name,
-              role: userData.role === 'owner' ? 'facility_owner' : userData.role as User['role'],
-              isVerified: userData.otpVerified,
-              avatar: userData.avatar
-            };
-            
-            console.log('AuthContext: Updated user from API:', user);
-            setUser(user);
-            localStorage.setItem('quickcourt_user', JSON.stringify(user));
-          } catch (tokenError) {
-            console.error('AuthContext: Error fetching user with token:', tokenError);
-            // If we already set the user from localStorage, keep it
-            if (!storedUser) {
-              setUser(null);
-              localStorage.removeItem('quickcourt_user');
-            }
+          // Get user profile from server
+          const userResponse = await authAPI.getProfile(token);
+          const userData = userResponse.data;
+          
+          // Convert server user model to client user model
+          const user: User = {
+            id: userData._id,
+            email: userData.email,
+            fullName: userData.name,
+            role: userData.role as User['role'],
+            isVerified: userData.otpVerified,
+            avatar: userData.avatar
+          };
+          
+          setUser(user);
+          localStorage.setItem('quickcourt_user', JSON.stringify(user));
+        } else {
+          // Fallback to stored user if no token (for backward compatibility)
+          const storedUser = localStorage.getItem('quickcourt_user');
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
           }
-        } else if (!storedUser) {
-          console.log('AuthContext: No token or stored user found');
-          setUser(null);
         }
       } catch (error) {
-        console.error('AuthContext: Error in loadUser:', error);
+        console.error('Error loading user profile:', error);
         // Clear potentially invalid data
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem('quickcourt_user');
@@ -131,15 +106,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setUser(user);
       localStorage.setItem('quickcourt_user', JSON.stringify(user));
-      
-      // Redirect admin users to admin dashboard
-      if (user.role === 'admin') {
-        console.log('Admin user detected, redirecting to admin dashboard');
-        window.location.href = '/admin';
+    } catch (error: any) {
+      // If banned, surface clear message and ensure no token remains
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      if (serverMsg && /banned/i.test(serverMsg)) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('quickcourt_user');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw new Error('Login failed');
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -226,9 +200,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       setUser(verifiedUser);
       localStorage.setItem('quickcourt_user', JSON.stringify(verifiedUser));
-    } catch (error) {
+    } catch (error: any) {
+      const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+      if (serverMsg && /banned/i.test(serverMsg)) {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem('quickcourt_user');
+      }
       console.error('OTP verification error:', error);
-      throw new Error('OTP verification failed');
+      throw new Error(serverMsg || 'OTP verification failed');
     } finally {
       setIsLoading(false);
     }

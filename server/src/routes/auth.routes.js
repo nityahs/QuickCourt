@@ -35,6 +35,7 @@ r.post('/verify-otp', required(['userId','otp']), async (req,res,next)=>{
     const { userId, otp } = req.body;
     const user = await User.findById(userId);
     if(!user) return res.status(404).json({ error:'User not found' });
+    if (user.banned) return res.status(403).json({ error: 'You have been banned', code: 'BANNED' });
     if(user.otp !== otp) return res.status(400).json({ error:'Invalid OTP' });
     user.otpVerified = true; user.otp = undefined; await user.save();
     const token = signToken({ _id:user._id, role:user.role });
@@ -47,6 +48,7 @@ r.post('/login', required(['email','password']), async (req,res,next)=>{
     const { email,password } = req.body;
     const user = await User.findOne({ email });
     if(!user) return res.status(400).json({ error:'Invalid credentials' });
+    if (user.banned) return res.status(403).json({ error: 'You have been banned', code: 'BANNED' });
     const ok = await bcrypt.compare(password, user.passwordHash);
     if(!ok) return res.status(400).json({ error:'Invalid credentials' });
     const token = signToken({ _id:user._id, role:user.role });

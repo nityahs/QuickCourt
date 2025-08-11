@@ -42,7 +42,21 @@ r.get('/users', auth, roleGuard('admin'), async (req,res)=>{
 
 r.put('/users/:id/:action', auth, roleGuard('admin'), async (req,res)=>{
   const { action } = req.params; // ban|unban
-  const doc = await User.findByIdAndUpdate(req.params.id, { banned: action==='ban' }, { new:true });
+
+  // Fetch target user first to enforce role-based restriction
+  const targetUser = await User.findById(req.params.id);
+  if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+  // Do not allow banning another admin
+  if (targetUser.role === 'admin' && action === 'ban') {
+    return res.status(403).json({ error: 'Cannot ban a user with admin role' });
+  }
+
+  const doc = await User.findByIdAndUpdate(
+    req.params.id,
+    { banned: action==='ban' },
+    { new:true }
+  );
   
   // Transform data to match client expectations
   const transformedUser = {

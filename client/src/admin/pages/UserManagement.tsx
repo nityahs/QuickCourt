@@ -239,14 +239,18 @@ const UserManagement: React.FC = () => {
                       {formatDate(user.createdAt)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleBanUser(user.id, user.banned || false)}
-                        className={`mr-3 ${
-                          user.banned ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'
-                        }`}
-                      >
-                        {user.banned ? 'Unban' : 'Ban'}
-                      </button>
+                      {user.role === 'admin' ? (
+                        <span className="text-gray-400 cursor-not-allowed mr-3" title="Admins cannot be banned">Ban</span>
+                      ) : (
+                        <button
+                          onClick={() => handleBanUser(user.id, user.banned || false)}
+                          className={`mr-3 ${
+                            user.banned ? 'text-green-600 hover:text-green-900' : 'text-red-600 hover:text-red-900'
+                          }`}
+                        >
+                          {user.banned ? 'Unban' : 'Ban'}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleViewBookings(user)}
                         className="text-indigo-600 hover:text-indigo-900"
