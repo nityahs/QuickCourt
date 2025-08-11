@@ -288,11 +288,10 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">My Profile</h1>
+      <div className="flex items-center justify-end mb-6">
         <button
           onClick={onBack}
-          className="text-blue-600 hover:text-blue-800 font-medium"
+          className="text-gray-800 hover:text-gray-900 font-medium"
         >
           Back to Home
         </button>
@@ -384,17 +383,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
         </div>
       ) : (
         <div>
-          {/* Show different header for admins */}
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            {user?.role === 'admin' ? 'Admin Profile' : 'Edit Profile'}
-          </h2>
           
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-gray-100 rounded-lg shadow-md p-6">
             <form onSubmit={handleProfileUpdate} className="space-y-6">
               {/* Avatar Upload */}
               <div className="flex flex-col items-center space-y-4">
                 <div className="relative">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
+                  <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center">
                     {avatarPreview ? (
                       <img 
                         src={avatarPreview} 
@@ -402,12 +397,12 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <User className="w-12 h-12 text-gray-400" />
+                      <User className="w-16 h-16 text-gray-400" />
                     )}
                   </div>
                   <label 
                     htmlFor="avatar-upload" 
-                    className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-700 transition-colors shadow-lg"
+                    className="absolute bottom-0 right-0 bg-gray-800 rounded-full p-2 cursor-pointer hover:bg-gray-900 transition-colors shadow-lg"
                   >
                     <Camera className="w-4 h-4 text-white" />
                   </label>
@@ -559,17 +554,17 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
               </div>
 
               {error && (
-                <div className="text-red-600 text-sm">{error}</div>
+                <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200">{error}</div>
               )}
 
               {success && (
-                <div className="text-green-600 text-sm">{success}</div>
+                <div className="text-green-600 text-sm bg-green-50 p-3 rounded-lg border border-green-200">{success}</div>
               )}
 
               <button
                 type="submit"
                 disabled={isLoading || isUpdating}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUpdating ? 'Updating...' : 'Update Profile'}
               </button>
