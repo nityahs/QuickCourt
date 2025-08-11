@@ -317,15 +317,16 @@ function AppContent() {
 }
 
 function App() {
+  // Place Router outside AuthProvider so AuthContext (which uses useNavigate) is within Router context
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           <Route path="/admin/*" element={<AdminRoutes />} />
           <Route path="/*" element={<AppContent />} />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

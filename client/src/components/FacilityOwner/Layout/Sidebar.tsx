@@ -32,8 +32,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
 
   const handleLogout = () => {
     logout();
-    // Redirect to home page
-    window.location.href = '/';
   };
 
   const handleNavigation = (path: string) => {
