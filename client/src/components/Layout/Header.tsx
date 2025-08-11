@@ -26,9 +26,21 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu }) => {
             >
               {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
             </button>
-            <div className="flex-shrink-0 ml-2 md:ml-0">
-              <h1 className="text-2xl font-extrabold tracking-tight"><span className="text-gray-900">QUICK</span><span className="text-gradient">COURT</span></h1>
-            </div>
+            <a
+              href="/"
+              aria-label="Go to Home"
+              className="flex-shrink-0 ml-2 md:ml-0 cursor-pointer rounded select-none focus:outline-none focus:ring-0 focus-visible:outline-none active:outline-none"
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, '', '/');
+                window.dispatchEvent(new Event('popstate'));
+              }}
+            >
+              <h1 className="text-2xl font-extrabold tracking-tight">
+                <span className="text-gray-900">QUICK</span>
+                <span className="text-gradient">COURT</span>
+              </h1>
+            </a>
           </div>
 
           {/* Desktop Navigation */}
