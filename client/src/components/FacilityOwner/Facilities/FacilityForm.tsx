@@ -13,14 +13,13 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
     name: facility?.name || '',
     description: facility?.description || '',
     address: facility?.address || '',
-    location: facility?.location || '',
-    sportTypes: facility?.sportTypes || [],
-    startingPrice: facility?.startingPrice || 0,
-    amenities: facility?.amenities || [],
-    operatingHours: {
-      start: facility?.operatingHours?.start || '06:00',
-      end: facility?.operatingHours?.end || '22:00'
-    }
+    geolocation: {
+      lat: facility?.geolocation?.lat || 0,
+      lng: facility?.geolocation?.lng || 0
+    },
+    sports: facility?.sports || [],
+    startingPricePerHour: facility?.startingPricePerHour || 0,
+    amenities: facility?.amenities || []
   });
 
   const [newSport, setNewSport] = useState('');
@@ -28,14 +27,26 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    // Transform form data to match backend model
+    const transformedData = {
+      name: formData.name,
+      description: formData.description,
+      address: formData.address,
+      geolocation: formData.geolocation,
+      sports: formData.sports,
+      startingPricePerHour: formData.startingPricePerHour,
+      amenities: formData.amenities
+    };
+    
+    onSave(transformedData);
   };
 
   const addSport = () => {
-    if (newSport.trim() && !formData.sportTypes.includes(newSport.trim())) {
+    if (newSport.trim() && !formData.sports.includes(newSport.trim())) {
       setFormData(prev => ({
         ...prev,
-        sportTypes: [...prev.sportTypes, newSport.trim()]
+        sports: [...prev.sports, newSport.trim()]
       }));
       setNewSport('');
     }
@@ -44,7 +55,7 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
   const removeSport = (sport: string) => {
     setFormData(prev => ({
       ...prev,
-      sportTypes: prev.sportTypes.filter(s => s !== sport)
+      sports: prev.sports.filter(s => s !== sport)
     }));
   };
 
@@ -176,8 +187,8 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
                     required
                     min="0"
                     step="0.01"
-                    value={formData.startingPrice}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startingPrice: parseFloat(e.target.value) || 0 }))}
+                    value={formData.startingPricePerHour}
+                    onChange={(e) => setFormData(prev => ({ ...prev, startingPricePerHour: parseFloat(e.target.value) || 0 }))}
                     className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="0.00"
                   />
@@ -203,7 +214,7 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {formData.sportTypes.map((sport, index) => (
+                  {formData.sports.map((sport, index) => (
                     <span
                       key={index}
                       className="inline-flex items-center space-x-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
@@ -219,44 +230,6 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
                     </span>
                   ))}
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Operating Hours */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-              <Clock className="w-5 h-5 text-orange-600" />
-              <span>Operating Hours</span>
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Opening Time</label>
-                <input
-                  type="time"
-                  required
-                  value={formData.operatingHours.start}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    operatingHours: { ...prev.operatingHours, start: e.target.value }
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Closing Time</label>
-                <input
-                  type="time"
-                  required
-                  value={formData.operatingHours.end}
-                  onChange={(e) => setFormData(prev => ({
-                    ...prev,
-                    operatingHours: { ...prev.operatingHours, end: e.target.value }
-                  }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
               </div>
             </div>
           </div>

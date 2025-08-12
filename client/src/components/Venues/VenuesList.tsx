@@ -76,9 +76,6 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
     facilitiesAPI.getAll(params)
       .then((res: any) => {
         const PLACEHOLDER = 'https://via.placeholder.com/800x450?text=No+Image';
-        console.log('Facilities API response:', res.data.data);
-        console.log('Sample facility geolocation:', res.data.data[0]?.geolocation);
-        
         setVenues(res.data.data.map((f: any) => ({
           id: f._id,
           name: f.name,
@@ -101,13 +98,6 @@ const VenuesList: React.FC<VenuesListProps> = ({ onViewVenue }) => {
           courts: [],
           ownerId: f.ownerId,
           isApproved: f.status === 'approved',
-        })));
-        console.log('Mapped venues:', res.data.data.map((f: any) => ({
-          name: f.name,
-          geolocation: f.geolocation?.lat && f.geolocation?.lng ? {
-            lat: f.geolocation.lat,
-            lng: f.geolocation.lng
-          } : undefined
         })));
         setTotal(res.data.total || 0);
         setLoading(false);

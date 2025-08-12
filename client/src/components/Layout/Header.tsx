@@ -76,7 +76,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                 onClick={(e) => {
                   e.preventDefault();
                   if (item.path === '/facility-owner') {
-                    window.location.hash = 'facility-owner';
+                    window.history.pushState({}, '', '/facility-owner');
+                    window.dispatchEvent(new Event('popstate'));
                   } else if (item.path === '/admin') {
                     window.history.pushState({}, '', '/admin');
                     window.dispatchEvent(new Event('popstate'));
@@ -139,7 +140,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                         onClick={(e) => {
                           e.preventDefault();
                           setShowUserMenu(false);
-                          window.location.hash = 'facility-owner';
+                          window.history.pushState({}, '', '/facility-owner');
+                          window.dispatchEvent(new Event('popstate'));
                         }}
                       >
                         Dashboard

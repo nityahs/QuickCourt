@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { facilitiesAPI } from './services/facilities';
+import { Building2, Plus, Edit, Calendar, MapPin } from 'lucide-react';
 
 // Import components
 import HeroSection from './components/Home/HeroSection';
@@ -13,12 +14,41 @@ import UserProfile from './components/User/UserProfile';
 import FacilityOwnerDashboard from './components/FacilityOwner/FacilityOwnerDashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import TestLauncher from './components/Test/TestLauncher';
-import { Venue } from './types';
+import AvailabilityCalendar from './components/FacilityOwner/TimeSlots/AvailabilityCalendar';
+import FacilityOwnerLayout from './components/FacilityOwner/Layout/FacilityOwnerLayout';
+import { Venue, Court } from './types';
 
 // Transform server facility data to frontend venue format
-const transformFacilityToVenue = (facility: any): Venue => {
+interface ServerFacility {
+  _id: string;
+  name?: string;
+  description?: string;
+  address?: string;
+  geolocation?: { lat: number; lng: number };
+  sports?: string[];
+  startingPricePerHour?: number;
+  ratingAvg?: number;
+  ratingCount?: number;
+  photos?: string[];
+  amenities?: string[];
+  courts?: Array<{ _id: string; name?: string; sport?: string; pricePerHour?: number }>;
+  ownerId?: string;
+  status?: string;
+}
+
+const transformFacilityToVenue = (facility: ServerFacility): Venue => {
+  // Map courts from facility if available
+  const mappedCourts: Court[] = facility.courts ? facility.courts.map((court) => ({
+    id: court._id || '',
+    name: court.name || '',
+    sportType: court.sport || '',
+    pricePerHour: court.pricePerHour || 0,
+    venueId: facility._id || ''
+  })) : [];
+
   return {
-    id: facility._id,
+    id: facility._id || '',
+    _id: facility._id,
     name: facility.name || '',
     description: facility.description || '',
     address: facility.address || '',
@@ -37,7 +67,7 @@ const transformFacilityToVenue = (facility: any): Venue => {
       start: '09:00',
       end: '21:00'
     },
-    courts: [], // This would need to be fetched separately or included in the facility model
+    courts: mappedCourts,
     ownerId: facility.ownerId || '',
     isApproved: facility.status === 'approved'
   };
@@ -122,33 +152,8 @@ const VenueDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Transform server facility data to frontend venue format
-  const transformFacilityToVenue = (facility: any): Venue => {
-    return {
-      id: facility._id,
-      name: facility.name || '',
-      description: facility.description || '',
-      address: facility.address || '',
-      location: facility.address || '', // Use address as location fallback
-      geolocation: facility.geolocation ? {
-        lat: facility.geolocation.lat,
-        lng: facility.geolocation.lng
-      } : undefined,
-      sportTypes: facility.sports || [],
-      startingPrice: facility.startingPricePerHour || 0,
-      rating: facility.ratingAvg || 0,
-      reviewCount: facility.ratingCount || 0,
-      images: facility.photos || [],
-      amenities: facility.amenities || [],
-      operatingHours: {
-        start: '09:00',
-        end: '21:00'
-      },
-      courts: [], // This would need to be fetched separately or included in the facility model
-      ownerId: facility.ownerId || '',
-      isApproved: facility.status === 'approved'
-    };
-  };
+  // Use the global transformFacilityToVenue function instead of redefining it
+  // This removes the duplicate definition that was causing type conflicts
 
   useEffect(() => {
     const fetchVenue = async () => {
@@ -245,7 +250,11 @@ const AppRoutes = () => {
       <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
       
       {/* Role-specific Routes */}
-      <Route path="/facility-owner/*" element={<ProtectedRoute requiredRole="facility_owner"><FacilityOwnerRoutes /></ProtectedRoute>} />
+      <Route path="/facility-owner/*" element={
+        <ProtectedRoute requiredRole="facility_owner">
+          <FacilityOwnerRoutes />
+        </ProtectedRoute>
+      } />
       <Route path="/admin/*" element={<ProtectedRoute requiredRole="admin"><AdminRoutes /></ProtectedRoute>} />
       
       {/* Catch-all redirect */}
@@ -278,7 +287,22 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/" replace />;
   }
 
-  if (requiredRole && user.role !== requiredRole) {
+  console.log('ProtectedRoute - User role:', user.role, 'Required role:', requiredRole);
+  
+  // Special handling for facility_owner role
+  let hasAccess = true;
+  
+  if (requiredRole) {
+    if (requiredRole === 'facility_owner') {
+      // Allow access if user is a facility_owner
+      hasAccess = user.role === 'facility_owner';
+    } else {
+      // For other roles, require exact match
+      hasAccess = user.role === requiredRole;
+    }
+  }
+  
+  if (requiredRole && !hasAccess) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center">
@@ -302,8 +326,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
 
 // Facility Owner Sub-Routes (maps to facility owner API endpoints)
 const FacilityOwnerRoutes = () => {
+  console.log('Rendering FacilityOwnerRoutes');
   return (
     <Routes>
+      <Route index element={<FacilityOwnerDashboard />} />
       <Route path="/" element={<FacilityOwnerDashboard />} />
       <Route path="/facilities" element={<OwnerFacilitiesPage />} />
       <Route path="/facilities/new" element={<CreateFacilityPage />} />
@@ -312,6 +338,8 @@ const FacilityOwnerRoutes = () => {
       <Route path="/courts" element={<OwnerCourtsPage />} />
       <Route path="/courts/new" element={<CreateCourtPage />} />
       <Route path="/courts/:id" element={<EditCourtPage />} />
+      <Route path="/time-slots" element={<OwnerTimeSlotsPage />} />
+      <Route path="/profile" element={<OwnerProfilePage />} />
     </Routes>
   );
 };
@@ -393,13 +421,133 @@ const BookingPage = () => {
 };
 
 // Placeholder components for future implementation
-const OwnerFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Facilities - Coming Soon</h1></div>;
-const CreateFacilityPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Create Facility - Coming Soon</h1></div>;
-const EditFacilityPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Edit Facility - Coming Soon</h1></div>;
-const OwnerBookingsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Bookings - Coming Soon</h1></div>;
-const OwnerCourtsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Owner Courts - Coming Soon</h1></div>;
-const CreateCourtPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Create Court - Coming Soon</h1></div>;
-const EditCourtPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Edit Court - Coming Soon</h1></div>;
+const OwnerFacilitiesPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Facilities</h1>
+          <p className="text-gray-600 mt-2">Manage your sports facilities and venues</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Facilities - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const CreateFacilityPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Create Facility</h1>
+          <p className="text-gray-600 mt-2">Add a new sports facility to your portfolio</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Plus className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Create Facility - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const EditFacilityPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Facility</h1>
+          <p className="text-gray-600 mt-2">Update your facility information</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Edit className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Facility - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const OwnerBookingsPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Bookings</h1>
+          <p className="text-gray-600 mt-2">Manage all bookings for your facilities</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Bookings - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const OwnerCourtsPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Courts</h1>
+          <p className="text-gray-600 mt-2">Manage your sports courts</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Courts - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const CreateCourtPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Create Court</h1>
+          <p className="text-gray-600 mt-2">Add a new court to your facility</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Plus className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Create Court - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+
+const EditCourtPage = () => (
+  <FacilityOwnerLayout>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Edit Court</h1>
+          <p className="text-gray-600 mt-2">Update your court information</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
+        <Edit className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Court - Coming Soon</h2>
+        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
+      </div>
+    </div>
+  </FacilityOwnerLayout>
+);
+const OwnerTimeSlotsPage = () => <AvailabilityCalendar />;
+const OwnerProfilePage = () => <UserProfile onBack={() => window.history.back()} />;
 const AdminFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Facilities - Coming Soon</h1></div>;
 const PendingFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Pending Facilities - Coming Soon</h1></div>;
 const UserManagementPage = () => <div className="p-8"><h1 className="text-2xl font-bold">User Management - Coming Soon</h1></div>;

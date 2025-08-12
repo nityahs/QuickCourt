@@ -15,44 +15,42 @@ import {
 
 interface FacilityCardProps {
   facility: {
-    id: string;
+    _id: string;
     name: string;
     description: string;
     address: string;
-    location: string;
-    sportTypes: string[];
-    startingPrice: number;
-    rating: number;
-    reviewCount: number;
-    images: string[];
-    amenities: string[];
-    operatingHours: {
-      start: string;
-      end: string;
+    geolocation: {
+      lat: number;
+      lng: number;
     };
-    courts: Array<{
-      id: string;
-      name: string;
-      sportType: string;
-      pricePerHour: number;
-    }>;
-    isApproved: boolean;
+    sports: string[];
+    startingPricePerHour: number;
+    ratingAvg: number;
+    ratingCount: number;
+    photos: string[];
+    amenities: string[];
+    status: 'pending' | 'approved' | 'rejected';
+    createdAt: string;
+    updatedAt: string;
   };
   onEdit: () => void;
   onDelete: () => void;
 }
 
 const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete }) => {
-  const formatTime = (time: string) => {
-    return time.replace(':', '') + ' AM/PM';
-  };
-
   const getStatusBadge = () => {
-    if (facility.isApproved) {
+    if (facility.status === 'approved') {
       return (
         <div className="flex items-center space-x-1 text-green-600 bg-green-100 px-2 py-1 rounded-full text-xs font-medium">
           <CheckCircle className="w-3 h-3" />
           <span>Approved</span>
+        </div>
+      );
+    } else if (facility.status === 'rejected') {
+      return (
+        <div className="flex items-center space-x-1 text-red-600 bg-red-100 px-2 py-1 rounded-full text-xs font-medium">
+          <ClockIcon className="w-3 h-3" />
+          <span>Rejected</span>
         </div>
       );
     }
@@ -71,9 +69,9 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
     >
       {/* Image Section */}
       <div className="relative h-48 bg-gradient-to-br from-green-100 to-blue-100">
-        {facility.images.length > 0 ? (
+        {facility.photos && facility.photos.length > 0 ? (
           <img
-            src={facility.images[0]}
+            src={facility.photos[0]}
             alt={facility.name}
             className="w-full h-full object-cover"
           />
@@ -91,7 +89,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         {/* Price Badge */}
         <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg shadow-lg">
           <span className="text-lg font-bold text-green-600">
-            ${facility.startingPrice}
+            ${facility.startingPricePerHour}
           </span>
           <span className="text-sm text-gray-600 ml-1">/hour</span>
         </div>
@@ -113,11 +111,11 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
             <div className="flex items-center space-x-1">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
               <span className="text-sm font-medium text-gray-900">
-                {facility.rating}
+                {facility.ratingAvg.toFixed(1)}
               </span>
             </div>
             <span className="text-sm text-gray-500">
-              ({facility.reviewCount} reviews)
+              ({facility.ratingCount} reviews)
             </span>
           </div>
         </div>
@@ -129,23 +127,17 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
             <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-gray-900">{facility.address}</p>
-              <p className="text-xs text-gray-500">{facility.location}</p>
+              <p className="text-xs text-gray-500">
+                {facility.geolocation.lat.toFixed(6)}, {facility.geolocation.lng.toFixed(6)}
+              </p>
             </div>
           </div>
 
-          {/* Operating Hours */}
+          {/* Created Date */}
           <div className="flex items-center space-x-2">
             <Clock className="w-4 h-4 text-gray-400" />
             <span className="text-sm text-gray-600">
-              {formatTime(facility.operatingHours.start)} - {formatTime(facility.operatingHours.end)}
-            </span>
-          </div>
-
-          {/* Courts Count */}
-          <div className="flex items-center space-x-2">
-            <Users className="w-4 h-4 text-gray-400" />
-            <span className="text-sm text-gray-600">
-              {facility.courts.length} court{facility.courts.length !== 1 ? 's' : ''}
+              Created: {new Date(facility.createdAt).toLocaleDateString()}
             </span>
           </div>
         </div>
@@ -153,7 +145,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         {/* Sport Types */}
         <div className="mb-6">
           <div className="flex flex-wrap gap-2">
-            {facility.sportTypes.map((sport, index) => (
+            {facility.sports.map((sport, index) => (
               <span
                 key={index}
                 className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full"
@@ -165,7 +157,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         </div>
 
         {/* Amenities */}
-        {facility.amenities.length > 0 && (
+        {facility.amenities && facility.amenities.length > 0 && (
           <div className="mb-6">
             <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
               Amenities

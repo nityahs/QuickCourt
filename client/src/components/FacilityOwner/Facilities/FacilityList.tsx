@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -11,95 +11,66 @@ import {
   Eye,
   Building2
 } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { facilityOwnerAPI } from '../../../services/facilityOwner';
 import FacilityCard from './FacilityCard';
 import FacilityForm from './FacilityForm';
 
 interface Facility {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   address: string;
-  location: string;
-  sportTypes: string[];
-  startingPrice: number;
-  rating: number;
-  reviewCount: number;
-  images: string[];
-  amenities: string[];
-  operatingHours: {
-    start: string;
-    end: string;
+  geolocation: {
+    lat: number;
+    lng: number;
   };
-  courts: Array<{
-    id: string;
-    name: string;
-    sportType: string;
-    pricePerHour: number;
-  }>;
+  sports: string[];
+  startingPricePerHour: number;
+  ratingAvg: number;
+  ratingCount: number;
+  photos: string[];
+  amenities: string[];
+  status: 'pending' | 'approved' | 'rejected';
   ownerId: string;
-  isApproved: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const FacilityList: React.FC = () => {
-  const [facilities, setFacilities] = useState<Facility[]>([
-    {
-      id: '1',
-      name: 'Elite Sports Complex',
-      description: 'Premium sports facility with multiple courts and amenities',
-      address: '123 Sports Avenue',
-      location: 'Downtown',
-      sportTypes: ['Tennis', 'Basketball', 'Badminton'],
-      startingPrice: 45,
-      rating: 4.8,
-      reviewCount: 127,
-      images: ['/facility1.jpg'],
-      amenities: ['Parking', 'Shower', 'Equipment Rental', 'Cafe'],
-      operatingHours: { start: '06:00', end: '22:00' },
-      courts: [
-        { id: '1', name: 'Tennis Court 1', sportType: 'Tennis', pricePerHour: 45 },
-        { id: '2', name: 'Tennis Court 2', sportType: 'Tennis', pricePerHour: 45 },
-        { id: '3', name: 'Basketball Court', sportType: 'Basketball', pricePerHour: 35 },
-        { id: '4', name: 'Badminton Court', sportType: 'Badminton', pricePerHour: 25 }
-      ],
-      ownerId: 'owner1',
-      isApproved: true
-    },
-    {
-      id: '2',
-      name: 'Community Sports Center',
-      description: 'Family-friendly sports center with various activities',
-      address: '456 Community Drive',
-      location: 'Suburbs',
-      sportTypes: ['Football', 'Cricket', 'Tennis'],
-      startingPrice: 30,
-      rating: 4.5,
-      reviewCount: 89,
-      images: ['/facility2.jpg'],
-      amenities: ['Parking', 'Kids Area', 'Refreshments'],
-      operatingHours: { start: '07:00', end: '21:00' },
-      courts: [
-        { id: '5', name: 'Football Field', sportType: 'Football', pricePerHour: 80 },
-        { id: '6', name: 'Cricket Ground', sportType: 'Cricket', pricePerHour: 120 },
-        { id: '7', name: 'Tennis Court', sportType: 'Tennis', pricePerHour: 30 }
-      ],
-      ownerId: 'owner1',
-      isApproved: true
-    }
-  ]);
-
+  const { user } = useAuth();
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingFacility, setEditingFacility] = useState<Facility | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSport, setFilterSport] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
+  useEffect(() => {
+    fetchFacilities();
+  }, []);
+
+  const fetchFacilities = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await facilityOwnerAPI.getOwnerFacilities();
+      setFacilities(response.data);
+    } catch (err: any) {
+      console.error('Error fetching facilities:', err);
+      setError(err.response?.data?.error || 'Failed to load facilities');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredFacilities = facilities.filter(facility => {
     const matchesSearch = facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          facility.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSport = filterSport === 'all' || facility.sportTypes.includes(filterSport);
-    const matchesStatus = filterStatus === 'all' || 
-                         (filterStatus === 'approved' && facility.isApproved) ||
-                         (filterStatus === 'pending' && !facility.isApproved);
+    const matchesSport = filterSport === 'all' || facility.sports.includes(filterSport);
+    const matchesStatus = filterStatus === 'all' || facility.status === filterStatus;
     
     return matchesSearch && matchesSport && matchesStatus;
   });
@@ -114,37 +85,66 @@ const FacilityList: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDeleteFacility = (facilityId: string) => {
+  const handleDeleteFacility = async (facilityId: string) => {
     if (window.confirm('Are you sure you want to delete this facility?')) {
-      setFacilities(facilities.filter(f => f.id !== facilityId));
+      try {
+        await facilityOwnerAPI.deleteFacility(facilityId);
+        setFacilities(facilities.filter(f => f._id !== facilityId));
+      } catch (err: any) {
+        console.error('Error deleting facility:', err);
+        alert(err.response?.data?.error || 'Failed to delete facility');
+      }
     }
   };
 
-  const handleSaveFacility = (facilityData: Partial<Facility>) => {
-    if (editingFacility) {
-      // Update existing facility
-      setFacilities(facilities.map(f => 
-        f.id === editingFacility.id ? { ...f, ...facilityData } : f
-      ));
-    } else {
-      // Add new facility
-      const newFacility: Facility = {
-        ...facilityData as Facility,
-        id: Date.now().toString(),
-        rating: 0,
-        reviewCount: 0,
-        images: [],
-        courts: [],
-        ownerId: 'owner1',
-        isApproved: false
-      };
-      setFacilities([...facilities, newFacility]);
+  const handleSaveFacility = async (facilityData: Partial<Facility>) => {
+    try {
+      if (editingFacility) {
+        // Update existing facility
+        const response = await facilityOwnerAPI.updateFacility(editingFacility._id, facilityData);
+        setFacilities(facilities.map(f => 
+          f._id === editingFacility._id ? response.data : f
+        ));
+      } else {
+        // Add new facility
+        const response = await facilityOwnerAPI.createFacility(facilityData);
+        setFacilities([response.data, ...facilities]);
+      }
+      setShowForm(false);
+      setEditingFacility(null);
+    } catch (err: any) {
+      console.error('Error saving facility:', err);
+      alert(err.response?.data?.error || 'Failed to save facility');
     }
-    setShowForm(false);
-    setEditingFacility(null);
   };
 
-  const allSportTypes = Array.from(new Set(facilities.flatMap(f => f.sportTypes)));
+  const allSportTypes = Array.from(new Set(facilities.flatMap(f => f.sports)));
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading facilities...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+        <h3 className="text-lg font-semibold text-red-800 mb-2">Error Loading Facilities</h3>
+        <p className="text-red-600 mb-4">{error}</p>
+        <button
+          onClick={fetchFacilities}
+          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -201,6 +201,7 @@ const FacilityList: React.FC = () => {
             <option value="all">All Status</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
           </select>
 
           {/* Results Count */}
@@ -217,7 +218,7 @@ const FacilityList: React.FC = () => {
         <AnimatePresence>
           {filteredFacilities.map((facility, index) => (
             <motion.div
-              key={facility.id}
+              key={facility._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -226,7 +227,7 @@ const FacilityList: React.FC = () => {
               <FacilityCard
                 facility={facility}
                 onEdit={() => handleEditFacility(facility)}
-                onDelete={() => handleDeleteFacility(facility.id)}
+                onDelete={() => handleDeleteFacility(facility._id)}
               />
             </motion.div>
           ))}
