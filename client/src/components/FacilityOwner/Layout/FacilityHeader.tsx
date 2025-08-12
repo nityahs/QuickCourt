@@ -23,23 +23,23 @@ const getBreadcrumbs = (page: string): Array<{ label: string; path?: string }> =
   const breadcrumbs: Record<string, Array<{ label: string; path?: string }>> = {
     dashboard: [{ label: 'Dashboard' }],
     facilities: [
-      { label: 'Dashboard', path: '#facility-owner' },
+      { label: 'Dashboard', path: '/facility-owner' },
       { label: 'Facilities' }
     ],
     courts: [
-      { label: 'Dashboard', path: '#facility-owner' },
+      { label: 'Dashboard', path: '/facility-owner' },
       { label: 'Courts' }
     ],
     bookings: [
-      { label: 'Dashboard', path: '#facility-owner' },
+      { label: 'Dashboard', path: '/facility-owner' },
       { label: 'Bookings' }
     ],
     'time-slots': [
-      { label: 'Dashboard', path: '#facility-owner' },
+      { label: 'Dashboard', path: '/facility-owner' },
       { label: 'Time Slots' }
     ],
     profile: [
-      { label: 'Dashboard', path: '#facility-owner' },
+      { label: 'Dashboard', path: '/facility-owner' },
       { label: 'Profile' }
     ]
   };
@@ -49,12 +49,12 @@ const getBreadcrumbs = (page: string): Array<{ label: string; path?: string }> =
 const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
   const { user } = useAuth();
   
-  // Get current page from hash
+  // Get current page from URL path
   const getCurrentPage = () => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === 'facility-owner') return 'dashboard';
-    if (hash.startsWith('facility-owner/')) {
-      return hash.replace('facility-owner/', '');
+    const path = window.location.pathname;
+    if (path === '/facility-owner') return 'dashboard';
+    if (path.startsWith('/facility-owner/')) {
+      return path.replace('/facility-owner/', '');
     }
     return 'dashboard';
   };
@@ -64,7 +64,8 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
   const breadcrumbs = getBreadcrumbs(currentPage);
 
   const handleBreadcrumbClick = (path: string) => {
-    window.location.hash = path.replace('#', '');
+    window.history.pushState({}, '', path);
+    window.dispatchEvent(new Event('popstate'));
   };
 
   return (
@@ -72,12 +73,15 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
         {/* Left side - Menu button and breadcrumbs */}
         <div className="flex items-center space-x-4">
-          <button
+          <motion.button
             onClick={onMenuToggle}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Toggle sidebar menu"
           >
             <Menu className="w-5 h-5 text-gray-600" />
-          </button>
+          </motion.button>
           
           <div className="hidden sm:flex items-center space-x-2">
             {breadcrumbs.map((crumb, index) => (

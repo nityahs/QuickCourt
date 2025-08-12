@@ -14,13 +14,18 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log('No user ID available');
+        return;
+      }
       
+      console.log('Fetching dashboard data for user:', user.id);
       try {
         setLoading(true);
         setError(null);
         const response = await facilityOwnerAPI.getDashboardStats(user.id);
-        setStats(response.data);
+        console.log('Dashboard data received:', response);
+        setStats(response);
       } catch (err: any) {
         console.error('Error fetching dashboard data:', err);
         setError(err.response?.data?.error || 'Failed to load dashboard data');
@@ -31,6 +36,9 @@ const Dashboard: React.FC = () => {
 
     fetchDashboardData();
   }, [user?.id]);
+
+  // Add debug log for component rendering
+  console.log('Dashboard component rendering, stats:', stats ? 'available' : 'null');
 
   if (loading) {
     return (

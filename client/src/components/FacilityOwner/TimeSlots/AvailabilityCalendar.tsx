@@ -1,47 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Plus, Edit, Trash2, Block } from 'lucide-react';
+import { Calendar, Clock, MapPin, Plus, Edit, Trash2, Ban, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { facilityOwnerAPI } from '../../../services/facilityOwner';
 
 interface TimeSlot {
-  id: string;
+  _id?: string;
   courtId: string;
-  courtName: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  isAvailable: boolean;
+  dateISO: string;
+  start: string;
+  end: string;
   isBlocked: boolean;
-  price: number;
+  isBooked: boolean;
+  priceSnapshot: number;
+}
+
+interface Court {
+  _id: string;
+  name: string;
+  sport: string;
+  pricePerHour: number;
+  facilityId: string;
 }
 
 const AvailabilityCalendar: React.FC = () => {
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([
-    {
-      id: '1',
-      courtId: 'court1',
-      courtName: 'Tennis Court 1',
-      date: '2024-01-15',
-      startTime: '09:00',
-      endTime: '10:00',
-      isAvailable: true,
-      isBlocked: false,
-      price: 45
-    },
-    {
-      id: '2',
-      courtId: 'court1',
-      courtName: 'Tennis Court 1',
-      date: '2024-01-15',
-      startTime: '10:00',
-      endTime: '11:00',
-      isAvailable: false,
-      isBlocked: false,
-      price: 45
-    }
-  ]);
+  const { user } = useAuth();
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedCourt, setSelectedCourt] = useState<string>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedDate, setSelectedDate] = useState('2024-01-15');
-  const [selectedCourt, setSelectedCourt] = useState('all');
+  useEffect(() => {
+    fetchCourts();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCourt !== 'all' && selectedDate) {
+      fetchAvailability();
+    }
+  }, [selectedCourt, selectedDate]);
+
+  const fetchCourts = async () => {
+    try {
+      const response = await facilityOwnerAPI.getOwnerCourts();
+      setCourts(response.data);
+      if (response.data.length > 0) {
+        setSelectedCourt(response.data[0]._id);
+      }
+    } catch (err: any) {
+      console.error('Error fetching courts:', err);
+      setError('Failed to load courts');
+    }
+  };
+
+  const fetchAvailability = async () => {
+    if (selectedCourt === 'all' || !selectedDate) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await facilityOwnerAPI.getAvailability(selectedCourt, selectedDate);
+      setTimeSlots(response.data);
+    } catch (err: any) {
+      console.error('Error fetching availability:', err);
+      setError('Failed to load availability');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -52,15 +80,50 @@ const AvailabilityCalendar: React.FC = () => {
       const time = `${hour.toString().padStart(2, '0')}:00`;
       const nextTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
       
-      slots.push({
-        time,
-        nextTime,
-        isBooked: false,
-        isBlocked: false
-      });
+      // Find existing slot or create default
+      const existingSlot = timeSlots.find(slot => slot.start === time);
+      
+      if (existingSlot) {
+        slots.push(existingSlot);
+      } else {
+        slots.push({
+          courtId: selectedCourt,
+          dateISO: selectedDate,
+          start: time,
+          end: nextTime,
+          isBlocked: false,
+          isBooked: false,
+          priceSnapshot: courts.find(c => c._id === selectedCourt)?.pricePerHour || 0
+        });
+      }
     }
     
     return slots;
+  };
+
+  const handleBlockSlot = async (slot: TimeSlot, block: boolean) => {
+    try {
+      const response = await facilityOwnerAPI.blockSlot({
+        courtId: slot.courtId,
+        dateISO: slot.dateISO,
+        start: slot.start,
+        end: slot.end,
+        isBlocked: block
+      });
+      
+      // Update the slot in state
+      setTimeSlots(prev => prev.map(s => 
+        s.start === slot.start && s.dateISO === slot.dateISO 
+          ? { ...s, isBlocked: block }
+          : s
+      ));
+      
+      // Show success message
+      alert(response.message);
+    } catch (err: any) {
+      console.error('Error blocking slot:', err);
+      alert(err.response?.data?.error || 'Failed to update time slot');
+    }
   };
 
   const timeSlotsForDay = generateTimeSlots();
@@ -77,6 +140,16 @@ const AvailabilityCalendar: React.FC = () => {
     return 'Booked';
   };
 
+  if (courts.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No courts available</h3>
+        <p className="text-gray-600">You need to add courts to your facilities first.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -85,14 +158,6 @@ const AvailabilityCalendar: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Time Slots</h1>
           <p className="text-gray-600 mt-2">Manage court availability and time slots</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="inline-flex items-center space-x-2 bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Block Time</span>
-        </motion.button>
       </div>
 
       {/* Calendar Controls */}
@@ -118,9 +183,11 @@ const AvailabilityCalendar: React.FC = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="all">All Courts</option>
-              <option value="court1">Tennis Court 1</option>
-              <option value="court2">Basketball Court</option>
-              <option value="court3">Badminton Court</option>
+              {courts.map(court => (
+                <option key={court._id} value={court._id}>
+                  {court.name} ({court.sport})
+                </option>
+              ))}
             </select>
           </div>
 
@@ -142,110 +209,103 @@ const AvailabilityCalendar: React.FC = () => {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading availability...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+          <p className="text-red-600 mb-2">{error}</p>
+          <button
+            onClick={fetchAvailability}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Time Slots Grid */}
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg overflow-hidden">
-        <div className="p-6 border-b border-gray-200/50">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Availability for {new Date(selectedDate).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </h3>
+      {selectedCourt !== 'all' && !loading && !error && (
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg overflow-hidden">
+          <div className="p-6 border-b border-gray-200/50">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Availability for {new Date(selectedDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Court: {courts.find(c => c._id === selectedCourt)?.name}
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+            {timeSlotsForDay.map((slot, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                className="relative"
+              >
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-green-300 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {slot.start} - {slot.end}
+                    </span>
+                    <div className={`w-3 h-3 rounded-full ${getStatusColor(!slot.isBooked && !slot.isBlocked, slot.isBlocked)}`}></div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 mb-3">
+                    {getStatusText(!slot.isBooked && !slot.isBlocked, slot.isBlocked)}
+                  </div>
+                  
+                  <div className="text-xs text-gray-600 mb-3">
+                    ${slot.priceSnapshot}/hour
+                  </div>
+                  
+                  <div className="flex space-x-2">
+                    {slot.isBlocked ? (
+                      <button 
+                        onClick={() => handleBlockSlot(slot, false)}
+                        className="flex-1 text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 transition-colors flex items-center justify-center space-x-1"
+                      >
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Unblock</span>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleBlockSlot(slot, true)}
+                        className="flex-1 text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors flex items-center justify-center space-x-1"
+                      >
+                        <Ban className="w-3 h-3" />
+                        <span>Block</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-          {timeSlotsForDay.map((slot, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.2, delay: index * 0.05 }}
-              className="relative"
-            >
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-green-300 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-900">
-                    {slot.time} - {slot.nextTime}
-                  </span>
-                  <div className={`w-3 h-3 rounded-full ${getStatusColor(slot.isAvailable, slot.isBlocked)}`}></div>
-                </div>
-                
-                <div className="text-xs text-gray-500 mb-3">
-                  {getStatusText(slot.isAvailable, slot.isBlocked)}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button className="flex-1 text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600 transition-colors">
-                    Edit
-                  </button>
-                  <button className="flex-1 text-xs bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 transition-colors">
-                    Block
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+      )}
+
+      {/* Instructions */}
+      {selectedCourt === 'all' && (
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Court</h3>
+          <p className="text-gray-600">Choose a specific court to view and manage its time slots.</p>
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 shadow-lg"
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Clock className="w-6 h-6 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Quick Block</h3>
-          </div>
-          <p className="text-gray-600 text-sm mb-4">
-            Block multiple time slots quickly for maintenance or special events
-          </p>
-          <button className="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-            Block Time Slots
-          </button>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 shadow-lg"
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Calendar className="w-6 h-6 text-green-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Bulk Edit</h3>
-          </div>
-          <p className="text-gray-600 text-sm mb-4">
-            Edit multiple time slots at once for pricing or availability changes
-          </p>
-          <button className="w-full bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-            Bulk Edit
-          </button>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -5 }}
-          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 shadow-lg"
-        >
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <MapPin className="w-6 h-6 text-purple-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Court Settings</h3>
-          </div>
-          <p className="text-gray-600 text-sm mb-4">
-            Configure default availability and pricing for each court
-          </p>
-          <button className="w-full bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
-            Configure
-          </button>
-        </motion.div>
-      </div>
+      )}
     </div>
   );
 };

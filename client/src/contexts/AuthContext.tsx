@@ -88,7 +88,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         avatar: userData.avatar,
       };
       setUser(clientUser);
-      navigate('/');
+      
+      // Redirect based on user role
+      if (clientUser.role === 'facility_owner') {
+        navigate('/facility-owner');
+      } else {
+        navigate('/');
+      }
     } catch (error: any) {
       const code = error?.response?.data?.code;
       const userId = error?.response?.data?.userId;
@@ -158,7 +164,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       };
       setUser(verifiedUser);
       setShowOtpModal(false);
-      navigate(returnPath); // Navigate back to where user was before signup
+      
+      // Redirect based on user role after OTP verification
+      if (verifiedUser.role === 'facility_owner') {
+        navigate('/facility-owner');
+      } else {
+        navigate(returnPath); // Navigate back to where user was before signup
+      }
     } catch (error: any) {
       console.error('OTP verification error:', error);
       throw new Error(error?.response?.data?.error || 'OTP verification failed');

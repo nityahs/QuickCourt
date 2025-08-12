@@ -131,4 +131,32 @@ r.put('/:id', auth, roleGuard('owner'), async (req,res)=>{
   res.json(doc);
 });
 
+// GET facilities for a specific owner (authenticated owner only)
+r.get('/owner', auth, roleGuard('owner'), async (req, res) => {
+  try {
+    const facilities = await Facility.find({ ownerId: req.user._id }).sort({ createdAt: -1 });
+    res.json({ data: facilities });
+  } catch (error) {
+    console.error('Error fetching owner facilities:', error);
+    res.status(500).json({ error: 'Failed to fetch facilities' });
+  }
+});
+
+// DELETE facility (owner)
+r.delete('/:id', auth, roleGuard('owner'), async (req, res) => {
+  try {
+    const facility = await Facility.findOne({ _id: req.params.id, ownerId: req.user._id });
+    
+    if (!facility) {
+      return res.status(404).json({ error: 'Facility not found or you do not have permission to delete it' });
+    }
+    
+    await Facility.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Facility deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting facility:', error);
+    res.status(500).json({ error: 'Failed to delete facility' });
+  }
+});
+
 export default r;

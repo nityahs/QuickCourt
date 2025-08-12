@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
 import FacilityOwnerLayout from './Layout/FacilityOwnerLayout';
 import Dashboard from './Dashboard/Dashboard';
 import FacilityList from './Facilities/FacilityList';
@@ -10,20 +11,36 @@ import UserProfile from './Profile/UserProfile';
 
 const FacilityOwnerDashboard: React.FC = () => {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   
-  // Get the current section from the URL hash
+  // Get the current section from the URL path
   const getCurrentSection = () => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === 'facility-owner') return 'dashboard';
-    if (hash.includes('facility-owner/facilities')) return 'facilities';
-    if (hash.includes('facility-owner/courts')) return 'courts';
-    if (hash.includes('facility-owner/bookings')) return 'bookings';
-    if (hash.includes('facility-owner/time-slots')) return 'time-slots';
-    if (hash.includes('facility-owner/profile')) return 'profile';
+    const path = location.pathname;
+    console.log('Current path:', path); // Debug log
+    if (path === '/facility-owner' || path === '/facility-owner/') return 'dashboard';
+    if (path.includes('/facility-owner/facilities')) return 'facilities';
+    if (path.includes('/facility-owner/courts')) return 'courts';
+    if (path.includes('/facility-owner/bookings')) return 'bookings';
+    if (path.includes('/facility-owner/time-slots')) return 'time-slots';
+    if (path.includes('/facility-owner/profile')) return 'profile';
     return 'dashboard';
   };
 
   const currentSection = getCurrentSection();
+  console.log('Current section:', currentSection);
+  
+  // Ensure dashboard is shown by default
+  useEffect(() => {
+    console.log('FacilityOwnerDashboard mounted, path:', location.pathname);
+    // Fix for trailing slash issue
+    if (location.pathname === '/facility-owner/') {
+      navigate('/facility-owner');
+    }
+  }, [location.pathname, navigate]);
+  
+  // Debug log for rendering
+  console.log('FacilityOwnerDashboard rendering, user:', user?.id);
 
   const renderContent = () => {
     switch (currentSection) {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Building2, 
@@ -19,32 +20,34 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '#facility-owner' },
-  { id: 'facilities', label: 'Facilities', icon: Building2, path: '#facility-owner/facilities' },
-  { id: 'courts', label: 'Courts', icon: MapPin, path: '#facility-owner/courts' },
-  { id: 'bookings', label: 'Bookings', icon: Calendar, path: '#facility-owner/bookings' },
-  { id: 'time-slots', label: 'Time Slots', icon: Clock, path: '#facility-owner/time-slots' },
-  { id: 'profile', label: 'Profile', icon: User, path: '#facility-owner/profile' },
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, path: '/facility-owner' },
+  { id: 'facilities', label: 'Facilities', icon: Building2, path: '/facility-owner/facilities' },
+  { id: 'courts', label: 'Courts', icon: MapPin, path: '/facility-owner/courts' },
+  { id: 'bookings', label: 'Bookings', icon: Calendar, path: '/facility-owner/bookings' },
+  { id: 'time-slots', label: 'Time Slots', icon: Clock, path: '/facility-owner/time-slots' },
+  { id: 'profile', label: 'Profile', icon: User, path: '/facility-owner/profile' },
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
   };
 
   const handleNavigation = (path: string) => {
-    window.location.hash = path.replace('#', '');
+    navigate(path);
     onToggle(); // Close mobile menu
   };
 
-  // Get current page from hash
+  // Get current page from path
   const getCurrentPage = () => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === 'facility-owner') return 'dashboard';
-    if (hash.startsWith('facility-owner/')) {
-      return hash.replace('facility-owner/', '');
+    const path = location.pathname;
+    if (path === '/facility-owner') return 'dashboard';
+    if (path.startsWith('/facility-owner/')) {
+      return path.replace('/facility-owner/', '');
     }
     return 'dashboard';
   };
@@ -99,13 +102,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
               const isActive = currentPage === item.id;
               
               return (
-                <motion.a
+                <motion.div
                   key={item.id}
-                  href={item.path}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleNavigation(item.path);
-                  }}
+                  onClick={() => handleNavigation(item.path)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
@@ -116,7 +115,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                 >
                   <Icon className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-gray-500'}`} />
                   <span className="font-medium">{item.label}</span>
-                </motion.a>
+                </motion.div>
               );
             })}
           </nav>

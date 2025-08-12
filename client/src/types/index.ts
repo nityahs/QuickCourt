@@ -9,6 +9,7 @@ export interface User {
 
 export interface Venue {
   id: string;
+  _id?: string; // Adding _id for compatibility with server data
   name: string;
   description: string;
   address: string;
