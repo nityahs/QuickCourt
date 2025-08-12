@@ -75,13 +75,22 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
       setLoadingMore(true);
       const targetPage = nextPage ?? page + 1;
       const { data } = await reviewsAPI.getByFacility(venue.id, { page: targetPage, limit });
-      const mapped = (data.data || []).map((r: any) => ({
-        id: r._id,
-        rating: r.rating,
-        comment: r.text || r.comment || '',
-        createdAt: r.createdAt?.slice(0, 10) || '',
-        userName: r.userId?.name || 'Anonymous',
-      }));
+      
+      console.log('Reviews API response:', data);
+      console.log('Raw reviews data:', data.data);
+      
+      const mapped = (data.data || []).map((r: any) => {
+        console.log('Mapping review:', r);
+        return {
+          id: r._id,
+          rating: r.rating,
+          comment: r.text || r.comment || '',
+          createdAt: r.createdAt?.slice(0, 10) || '',
+          userName: r.userId?.name || r.userId?.fullName || 'Anonymous',
+        };
+      });
+      
+      console.log('Mapped reviews:', mapped);
       setReviews(prev => targetPage === 1 ? mapped : [...prev, ...mapped]);
       setTotalReviews(data.total || 0);
       setPage(targetPage);
