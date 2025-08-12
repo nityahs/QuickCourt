@@ -286,8 +286,41 @@ function getMockDashboardData(): FacilityOwnerStats {
 // Add the rest of the API methods
 export const facilityOwnerBookingAPI = {
   // Get all bookings for an owner's facilities
-  getOwnerBookings: (params?: any): Promise<{ data: any[]; total: number; page: number; limit: number; totalPages: number }> => {
-    return http.get('/facility-owner/bookings', { params });
+  getOwnerBookings: async (params?: any): Promise<{ data: any[]; total: number; page: number; limit: number; totalPages: number }> => {
+    try {
+      console.log('Calling API with params:', params);
+      const response = await http.get('/facility-owner/bookings', { params });
+      
+      // Validate response structure
+      if (!response || typeof response !== 'object') {
+        console.error('Invalid API response format:', response);
+        throw new Error('Invalid API response format');
+      }
+      
+      // Check if response has data property
+      if (!response.data && !Array.isArray(response)) {
+        console.error('Missing data in API response:', response);
+        return { data: [], total: 0, page: params?.page || 1, limit: params?.limit || 20, totalPages: 0 };
+      }
+      
+      // Handle both response formats (direct array or object with data property)
+      const responseData = Array.isArray(response) ? response : response.data;
+      const data = Array.isArray(responseData) ? responseData : 
+                  (responseData && responseData.data && Array.isArray(responseData.data)) ? responseData.data : [];
+      
+      // Normalize response format
+      return {
+        data: data,
+        total: responseData.total || data.length || 0,
+        page: responseData.page || params?.page || 1,
+        limit: responseData.limit || params?.limit || 20,
+        totalPages: responseData.totalPages || Math.ceil((responseData.total || data.length) / (params?.limit || 20)) || 1
+      };
+    } catch (error) {
+      console.error('Error in getOwnerBookings:', error);
+      // Return a safe default response
+      return { data: [], total: 0, page: params?.page || 1, limit: params?.limit || 20, totalPages: 0 };
+    }
   },
 
   // Get availability for a specific court and date

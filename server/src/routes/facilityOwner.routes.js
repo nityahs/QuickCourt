@@ -48,7 +48,7 @@ r.get('/dashboard-stats/:ownerId', auth, roleGuard('owner'), async (req, res) =>
     })
     .sort({ createdAt: -1 })
     .limit(5)
-    .populate('userId', 'name email')
+    .populate('userId', 'name email fullName')
     .populate('facilityId', 'name')
     .populate('courtId', 'name sport');
     
@@ -83,9 +83,12 @@ r.get('/dashboard-stats/:ownerId', auth, roleGuard('owner'), async (req, res) =>
         id: booking._id,
         type: 'booking',
         status: booking.status,
-        user: booking.userId ? { name: booking.userId.name, email: booking.userId.email } : null,
-        facility: booking.facilityId ? { name: booking.facilityId.name } : null,
-        court: booking.courtId ? { name: booking.courtId.name, sport: booking.courtId.sport } : null,
+        user: booking.userId ? { 
+          name: booking.userId.name || booking.userId.fullName || 'Unknown', 
+          email: booking.userId.email || 'unknown@example.com' 
+        } : { name: 'Unknown', email: 'unknown@example.com' },
+        facility: booking.facilityId ? { name: booking.facilityId.name } : { name: 'Unknown Facility' },
+        court: booking.courtId ? { name: booking.courtId.name, sport: booking.courtId.sport } : { name: 'Unknown Court', sport: 'Unknown' },
         date: booking.dateISO,
         time: `${booking.start} - ${booking.end}`,
         amount: booking.price,
@@ -290,14 +293,25 @@ r.delete('/courts/:courtId', auth, roleGuard('owner'), async (req, res) => {
 // GET all bookings for the authenticated owner's facilities
 r.get('/bookings', auth, roleGuard('owner'), async (req, res) => {
   try {
-    const { status, facilityId, courtId, dateFrom, dateTo, page = 1, limit = 20 } = req.query;
+    const { status, facilityId, courtId, dateFrom, dateTo, page = 1, limit = 20, facilityIds: requestFacilityIds } = req.query;
     
     // First get the owner's facilities
     const facilities = await Facility.find({ ownerId: req.user._id });
-    const facilityIds = facilities.map(f => f._id);
+    const ownerFacilityIds = facilities.map(f => f._id);
+    
+    // Use provided facilityIds if available, otherwise use all owner's facilities
+    let targetFacilityIds = ownerFacilityIds;
+    if (requestFacilityIds) {
+      // Convert to array if it's a string
+      const requestIds = Array.isArray(requestFacilityIds) ? requestFacilityIds : [requestFacilityIds];
+      // Filter to ensure we only include facilities owned by this user
+      targetFacilityIds = requestIds.filter(id => 
+        ownerFacilityIds.some(ownerId => ownerId.toString() === id.toString())
+      );
+    }
     
     // Build filter based on query parameters
-    const filter = { facilityId: { $in: facilityIds } };
+    const filter = { facilityId: { $in: targetFacilityIds } };
     
     if (status) filter.status = status;
     if (facilityId) filter.facilityId = facilityId;
@@ -314,15 +328,34 @@ r.get('/bookings', auth, roleGuard('owner'), async (req, res) => {
     
     // Get paginated results with populated data
     const bookings = await Booking.find(filter)
-      .populate('userId', 'name email')
+      .populate('userId', 'name email fullName')
       .populate('facilityId', 'name')
       .populate('courtId', 'name sport')
       .sort({ createdAt: -1 })
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
+      
+    // Transform the data to match the client's expected format
+    const transformedBookings = bookings.map(booking => {
+      const bookingObj = booking.toObject();
+      return {
+        ...bookingObj,
+        user: bookingObj.userId ? {
+          name: bookingObj.userId.name || bookingObj.userId.fullName || 'Unknown',
+          email: bookingObj.userId.email || 'unknown@example.com'
+        } : { name: 'Unknown', email: 'unknown@example.com' },
+        court: bookingObj.courtId ? {
+          name: bookingObj.courtId.name || 'Unknown Court',
+          sport: bookingObj.courtId.sport || 'Unknown'
+        } : { name: 'Unknown Court', sport: 'Unknown' },
+        facility: bookingObj.facilityId ? {
+          name: bookingObj.facilityId.name || 'Unknown Facility'
+        } : { name: 'Unknown Facility' }
+      };
+    });
 
     res.json({
-      data: bookings,
+      data: transformedBookings,
       total,
       page: Number(page),
       limit: Number(limit),

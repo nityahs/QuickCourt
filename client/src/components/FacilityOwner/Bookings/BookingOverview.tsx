@@ -2,27 +2,28 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, Eye, MoreHorizontal, Calendar, Clock, DollarSign, User, MapPin, Building2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { facilityOwnerAPI } from '../../../services/facilityOwner';
+import { facilityOwnerAPI, facilityOwnerBookingAPI } from '../../../services/facilityOwner';
 
 interface Booking {
   _id: string;
+  id?: string; // Some responses might use id instead of _id
   status: string;
   price: number;
   start: string;
   end: string;
   dateISO: string;
   createdAt: string;
-  user: {
-    name: string;
-    email: string;
+  user: { 
+    name: string; 
+    email: string; 
+    fullName?: string; // Add fullName property
   };
-  court: {
-    name: string;
-    sport: string;
+  court: { 
+    name: string; 
+    sport: string; 
+    sportType?: string; // Add sportType property
   };
-  facility: {
-    name: string;
-  };
+  facility: { name: string; };
 }
 
 const BookingOverview: React.FC = () => {
@@ -38,17 +39,25 @@ const BookingOverview: React.FC = () => {
 
   useEffect(() => {
     const fetchBookings = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log('No user ID available, skipping booking fetch');
+        return;
+      }
       
       try {
         setLoading(true);
         setError(null);
         
+        console.log('Fetching facilities for user ID:', user.id);
         // First get user's facilities
-        const facilitiesResponse = await facilityOwnerAPI.getOwnerFacilities(user.id);
-        const facilityIds = facilitiesResponse.data.map((f: any) => f.id);
+        const facilitiesResponse = await facilityOwnerAPI.getOwnerFacilities();
+        console.log('Facilities response:', facilitiesResponse);
+        
+        const facilityIds = facilitiesResponse.data.map((f: any) => f._id || f.id);
+        console.log('Extracted facility IDs:', facilityIds);
         
         if (facilityIds.length === 0) {
+          console.log('No facilities found for this user, returning empty bookings');
           setBookings([]);
           setTotalBookings(0);
           setTotalPages(1);
@@ -58,28 +67,142 @@ const BookingOverview: React.FC = () => {
         // Then get bookings for those facilities
         const params: any = {
           page: currentPage,
-          limit: 20
+          limit: 20,
+          facilityIds: facilityIds // Pass facility IDs as part of params
         };
         
         if (statusFilter !== 'all') {
           params.status = statusFilter;
         }
 
-        const bookingsResponse = await facilityOwnerAPI.getOwnerBookings(facilityIds, params);
-        const responseData = bookingsResponse.data;
+        console.log('Fetching bookings with params:', params);
+        const bookingsResponse = await facilityOwnerBookingAPI.getOwnerBookings(params);
+        // Log the response for debugging
+        console.log('Bookings API response:', bookingsResponse);
+        console.log('Response data type:', typeof bookingsResponse);
+        console.log('Response structure:', Object.keys(bookingsResponse || {}));
+        
+        if (!bookingsResponse) {
+          throw new Error('Empty response received from API');
+        }
+        
+        // Handle different response structures
+        const responseData = bookingsResponse.data || bookingsResponse;
+        console.log('Response data after normalization:', typeof responseData, responseData);
         
         if (responseData && typeof responseData === 'object' && 'data' in responseData && Array.isArray(responseData.data)) {
+          console.log('Processing nested data array response');
           const typedResponse = responseData as unknown as { data: Booking[]; total: number; totalPages: number };
-          setBookings(typedResponse.data);
-          setTotalBookings(typedResponse.total);
-          setTotalPages(typedResponse.totalPages);
+          
+          if (!Array.isArray(typedResponse.data)) {
+            console.error('Expected data to be an array but got:', typeof typedResponse.data);
+            throw new Error(`Invalid data format: expected array but got ${typeof typedResponse.data}`);
+          }
+          
+          // Ensure all required properties exist before setting state
+          const safeBookings = typedResponse.data.map((booking, index) => {
+            // Log any problematic bookings
+            if (!booking || typeof booking !== 'object') {
+              console.error(`Invalid booking at index ${index}:`, booking);
+              return {
+                _id: `temp-${Math.random()}`,
+                status: 'pending',
+                price: 0,
+                start: '00:00',
+                end: '00:00',
+                dateISO: new Date().toISOString().split('T')[0],
+                createdAt: new Date().toISOString(),
+                user: { name: 'Unknown', email: 'unknown@example.com' },
+                court: { name: 'Unknown Court', sport: 'Unknown' },
+                facility: { name: 'Unknown Facility' }
+              };
+            }
+            
+            // Check for missing properties
+            if (!booking.user) console.warn(`Booking ${booking._id || index} missing user property`);
+            if (!booking.court) console.warn(`Booking ${booking._id || index} missing court property`);
+            if (!booking.facility) console.warn(`Booking ${booking._id || index} missing facility property`);
+            
+            // Create a safe booking object with all required properties
+            return {
+              ...booking,
+              _id: booking._id || booking.id || `temp-${Math.random()}`,
+              status: booking.status || 'pending',
+              price: booking.price || 0,
+              start: booking.start || '00:00',
+              end: booking.end || '00:00',
+              dateISO: booking.dateISO || new Date().toISOString().split('T')[0],
+              createdAt: booking.createdAt || new Date().toISOString(),
+              user: booking.user ? {
+                name: booking.user.name || booking.user.fullName || 'Unknown',
+                email: booking.user.email || 'unknown@example.com'
+              } : { name: 'Unknown', email: 'unknown@example.com' },
+              court: booking.court ? {
+                name: booking.court.name || 'Unknown Court',
+                sport: booking.court.sport || booking.court.sportType || 'Unknown'
+              } : { name: 'Unknown Court', sport: 'Unknown' },
+              facility: booking.facility ? {
+                name: booking.facility.name || 'Unknown Facility'
+              } : { name: 'Unknown Facility' }
+            };
+          });
+          
+          console.log('Processed safe bookings:', safeBookings.length, 'items');
+          setBookings(safeBookings);
+          setTotalBookings(typedResponse.total || safeBookings.length);
+          setTotalPages(typedResponse.totalPages || 1);
         } else if (Array.isArray(responseData)) {
+          console.log('Processing direct array response');
           // Fallback if response is directly an array
-          setBookings(responseData);
+          // Ensure all required properties exist with the same comprehensive approach
+          const safeBookings = responseData.map((booking, index) => {
+            // Log any problematic bookings
+            if (!booking || typeof booking !== 'object') {
+              console.error(`Invalid booking at index ${index}:`, booking);
+              return {
+                _id: `temp-${Math.random()}`,
+                status: 'pending',
+                price: 0,
+                start: '00:00',
+                end: '00:00',
+                dateISO: new Date().toISOString().split('T')[0],
+                createdAt: new Date().toISOString(),
+                user: { name: 'Unknown', email: 'unknown@example.com' },
+                court: { name: 'Unknown Court', sport: 'Unknown' },
+                facility: { name: 'Unknown Facility' }
+              };
+            }
+            
+            return {
+              ...booking,
+              _id: booking._id || booking.id || `temp-${Math.random()}`,
+              status: booking.status || 'pending',
+              price: booking.price || 0,
+              start: booking.start || '00:00',
+              end: booking.end || '00:00',
+              dateISO: booking.dateISO || new Date().toISOString().split('T')[0],
+              createdAt: booking.createdAt || new Date().toISOString(),
+              user: booking.user ? {
+                name: booking.user.name || booking.user.fullName || 'Unknown',
+                email: booking.user.email || 'unknown@example.com'
+              } : { name: 'Unknown', email: 'unknown@example.com' },
+              court: booking.court ? {
+                name: booking.court.name || 'Unknown Court',
+                sport: booking.court.sport || booking.court.sportType || 'Unknown'
+              } : { name: 'Unknown Court', sport: 'Unknown' },
+              facility: booking.facility ? {
+                name: booking.facility.name || 'Unknown Facility'
+              } : { name: 'Unknown Facility' }
+            };
+          });
+          
+          console.log('Processed direct array bookings:', safeBookings.length, 'items');
+          setBookings(safeBookings);
           setTotalBookings(responseData.length);
           setTotalPages(1);
         } else {
           // Default fallback
+          console.warn('Unrecognized response format, defaulting to empty bookings');
           setBookings([]);
           setTotalBookings(0);
           setTotalPages(1);
@@ -87,7 +210,11 @@ const BookingOverview: React.FC = () => {
         
       } catch (err: any) {
         console.error('Error fetching bookings:', err);
-        setError(err.response?.data?.error || 'Failed to load bookings');
+        const errorMessage = err.response?.data?.error || err.message || 'Failed to load bookings';
+        console.error('Error details:', errorMessage);
+        setError(errorMessage);
+        // Set empty bookings array to prevent rendering issues
+        setBookings([]);
       } finally {
         setLoading(false);
       }
@@ -97,10 +224,15 @@ const BookingOverview: React.FC = () => {
   }, [user?.id, currentPage, statusFilter]);
 
   const filteredBookings = bookings.filter(booking => {
-    const matchesSearch = 
-      booking.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.court.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      booking.facility.name.toLowerCase().includes(searchTerm.toLowerCase());
+    // Safely access properties with fallbacks
+    const userName = booking.user?.name || '';
+    const courtName = booking.court?.name || '';
+    const facilityName = booking.facility?.name || '';
+    
+    const matchesSearch = searchTerm === '' || 
+      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      courtName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      facilityName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
     
@@ -121,28 +253,89 @@ const BookingOverview: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
+    try {
+      // Check if dateString is valid
+      if (!dateString || typeof dateString !== 'string') {
+        return 'N/A';
+      }
+      
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'N/A';
+      }
+      
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'N/A';
+    }
   };
 
   const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 || 12;
-    return `${formattedHour}:${minutes} ${ampm}`;
+    try {
+      // Check if time is valid
+      if (!time || typeof time !== 'string' || !time.includes(':')) {
+        return 'N/A'; // Return placeholder for invalid time
+      }
+      
+      const [hours, minutes] = time.split(':');
+      
+      // Validate hours and minutes
+      const hour = parseInt(hours, 10);
+      if (isNaN(hour) || hour < 0 || hour > 23) {
+        return 'N/A';
+      }
+      
+      // Ensure minutes is valid
+      const mins = minutes || '00';
+      if (mins.length !== 2 || isNaN(parseInt(mins, 10))) {
+        return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`;
+      }
+      
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const formattedHour = hour % 12 || 12;
+      return `${formattedHour}:${mins} ${ampm}`;
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      return 'N/A';
+    }
   };
 
   const calculateDuration = (start: string, end: string) => {
-    const startTime = new Date(`2000-01-01T${start}`);
-    const endTime = new Date(`2000-01-01T${end}`);
-    const diffMs = endTime.getTime() - startTime.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-    return diffHours;
+    try {
+      // Ensure start and end are valid time strings
+      if (!start || !end || typeof start !== 'string' || typeof end !== 'string') {
+        return 1; // Default to 1 hour if invalid input
+      }
+      
+      // Ensure proper time format (HH:MM)
+      const startFormatted = start.includes(':') ? start : '00:00';
+      const endFormatted = end.includes(':') ? end : '00:00';
+      
+      const startTime = new Date(`2000-01-01T${startFormatted}`);
+      const endTime = new Date(`2000-01-01T${endFormatted}`);
+      
+      // Check if dates are valid
+      if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+        return 1; // Default to 1 hour if invalid dates
+      }
+      
+      const diffMs = endTime.getTime() - startTime.getTime();
+      // Handle case where end time is before start time (next day)
+      const adjustedDiffMs = diffMs < 0 ? diffMs + (24 * 60 * 60 * 1000) : diffMs;
+      const diffHours = adjustedDiffMs / (1000 * 60 * 60);
+      
+      return diffHours > 0 ? diffHours : 1; // Ensure positive duration
+    } catch (error) {
+      console.error('Error calculating duration:', error);
+      return 1; // Default to 1 hour on error
+    }
   };
 
   if (loading) {
