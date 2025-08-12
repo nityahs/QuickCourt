@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, MapPin, DollarSign, Clock, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, MapPin, DollarSign, Clock, Edit, Trash2 } from 'lucide-react';
+import { useAuth } from '../../../contexts/AuthContext';
+import { facilityOwnerAPI } from '../../../services/facilityOwner';
 
 interface Court {
   id: string;
@@ -17,45 +19,115 @@ interface Court {
 }
 
 const CourtManagement: React.FC = () => {
-  const [courts, setCourts] = useState<Court[]>([
-    {
-      id: '1',
-      name: 'Tennis Court 1',
-      sportType: 'Tennis',
-      pricePerHour: 45,
-      facilityId: '1',
-      facilityName: 'Elite Sports Complex',
-      isActive: true,
-      operatingHours: { start: '06:00', end: '22:00' }
-    },
-    {
-      id: '2',
-      name: 'Basketball Court',
-      sportType: 'Basketball',
-      pricePerHour: 35,
-      facilityId: '1',
-      facilityName: 'Elite Sports Complex',
-      isActive: true,
-      operatingHours: { start: '06:00', end: '22:00' }
-    }
-  ]);
+  const { user } = useAuth();
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [facilities, setFacilities] = useState<Array<{ id: string; name: string }>>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
-  const [editingCourt, setEditingCourt] = useState<Court | null>(null);
+  const [newCourt, setNewCourt] = useState<Partial<Court>>({
+    name: '',
+    sportType: 'Tennis',
+    pricePerHour: 0,
+    facilityId: '',
+    isActive: true,
+    operatingHours: { start: '06:00', end: '22:00' }
+  });
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user) return;
+      try {
+        setLoading(true);
+        const facResp = await facilityOwnerAPI.getOwnerFacilities(user.id);
+        const facs = (facResp.data || []).map((f: any) => ({ id: f._id, name: f.name }));
+        setFacilities(facs);
+        const facIds = facs.map(f => f.id);
+        if (facIds.length) {
+          const courtsResp = await facilityOwnerAPI.getOwnerCourts(facIds);
+          const rows = (courtsResp.data || []).map((c: any) => ({
+            id: c._id,
+            name: c.name,
+            sportType: c.sport,
+            pricePerHour: c.pricePerHour,
+            facilityId: c.facilityId,
+            facilityName: facs.find(f => f.id === String(c.facilityId))?.name || '',
+            isActive: c.isActive,
+            operatingHours: { start: c.operatingHours?.open || '06:00', end: c.operatingHours?.close || '22:00' }
+          }) as Court);
+          setCourts(rows);
+        } else {
+          setCourts([]);
+        }
+      } catch (e: any) {
+        console.error(e);
+        setError(e?.response?.data?.error || 'Failed to load courts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [user]);
 
   const handleAddCourt = () => {
-    setEditingCourt(null);
+  // reset form for new court
+    setNewCourt({
+      name: '',
+      sportType: 'Tennis',
+      pricePerHour: 0,
+      facilityId: facilities[0]?.id || '',
+      isActive: true,
+      operatingHours: { start: '06:00', end: '22:00' }
+    });
     setShowForm(true);
   };
 
   const handleEditCourt = (court: Court) => {
-    setEditingCourt(court);
+    setNewCourt({
+      name: court.name,
+      sportType: court.sportType,
+      pricePerHour: court.pricePerHour,
+      facilityId: court.facilityId,
+      isActive: court.isActive,
+      operatingHours: court.operatingHours,
+    });
     setShowForm(true);
   };
 
   const handleDeleteCourt = (courtId: string) => {
     if (window.confirm('Are you sure you want to delete this court?')) {
       setCourts(courts.filter(c => c.id !== courtId));
+    }
+  };
+
+  const handleSaveNewCourt = async () => {
+    try {
+      const payload: any = {
+        name: newCourt.name,
+        sport: newCourt.sportType,
+        pricePerHour: newCourt.pricePerHour,
+        facilityId: newCourt.facilityId,
+        operatingHours: { open: newCourt.operatingHours?.start, close: newCourt.operatingHours?.end },
+        isActive: newCourt.isActive,
+      };
+      const resp = await facilityOwnerAPI.createCourt(payload);
+      const c = resp.data;
+      const row: Court = {
+        id: c._id,
+        name: c.name,
+        sportType: c.sport,
+        pricePerHour: c.pricePerHour,
+        facilityId: String(c.facilityId),
+        facilityName: facilities.find(f => f.id === String(c.facilityId))?.name || '',
+        isActive: c.isActive,
+        operatingHours: { start: c.operatingHours?.open || '06:00', end: c.operatingHours?.close || '22:00' }
+      };
+      setCourts(prev => [row, ...prev]);
+      setShowForm(false);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create court');
     }
   };
 
@@ -91,6 +163,8 @@ const CourtManagement: React.FC = () => {
       </div>
 
       {/* Courts Grid */}
+  {loading && <div className="text-center text-gray-600">Loading courts…</div>}
+  {error && <div className="text-center text-red-600">{error}</div>}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {courts.map((court, index) => (
           <motion.div
@@ -175,6 +249,51 @@ const CourtManagement: React.FC = () => {
             <span>Add Court</span>
           </button>
         </motion.div>
+      )}
+
+  {/* Create/Edit Court Modal (simple) */}
+  {showForm && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Add Court</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm mb-1">Name</label>
+                <input className="w-full border rounded px-3 py-2" value={newCourt.name || ''} onChange={e=>setNewCourt(prev=>({...prev, name:e.target.value}))} />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Sport</label>
+                <select className="w-full border rounded px-3 py-2" value={newCourt.sportType || ''} onChange={e=>setNewCourt(prev=>({...prev, sportType:e.target.value}))}>
+                  {['Tennis','Football','Basketball','Badminton','Cricket'].map(s=> <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Facility</label>
+                <select className="w-full border rounded px-3 py-2" value={newCourt.facilityId || ''} onChange={e=>setNewCourt(prev=>({...prev, facilityId:e.target.value}))}>
+                  {facilities.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Price Per Hour</label>
+                <input type="number" className="w-full border rounded px-3 py-2" value={newCourt.pricePerHour || 0} onChange={e=>setNewCourt(prev=>({...prev, pricePerHour: Number(e.target.value) || 0}))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm mb-1">Open</label>
+                  <input type="time" className="w-full border rounded px-3 py-2" value={newCourt.operatingHours?.start || '06:00'} onChange={e=>setNewCourt(prev=>({...prev, operatingHours:{...prev.operatingHours!, start:e.target.value, end: prev.operatingHours?.end || '22:00'}}))} />
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Close</label>
+                  <input type="time" className="w-full border rounded px-3 py-2" value={newCourt.operatingHours?.end || '22:00'} onChange={e=>setNewCourt(prev=>({...prev, operatingHours:{...prev.operatingHours!, end:e.target.value, start: prev.operatingHours?.start || '06:00'}}))} />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button className="px-4 py-2 border rounded" onClick={()=>setShowForm(false)}>Cancel</button>
+              <button className="px-4 py-2 bg-blue-600 text-white rounded" onClick={handleSaveNewCourt}>Save</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -51,8 +51,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   // Bargain state
   const [showBargain, setShowBargain] = useState(false);
   const [offeredPrice, setOfferedPrice] = useState(0);
-  const [isBargainSubmitted, setIsBargainSubmitted] = useState(false);
-  const [bargainResponse, setBargainResponse] = useState<any>(null);
+  // const [isBargainSubmitted, setIsBargainSubmitted] = useState(false);
+  // const [bargainResponse, setBargainResponse] = useState<any>(null);
   
   // Payment flow states
   const [step, setStep] = useState<'booking' | 'payment' | 'confirmation'>('booking');
@@ -126,9 +126,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
         offeredPrice: offeredPrice
       });
 
-      setBargainResponse(response.data);
-      setIsBargainSubmitted(true);
-      
       // If offer is auto-accepted, proceed to payment
       if (response.data.status === 'accepted') {
         // Create a pending booking with the accepted price
@@ -138,6 +135,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
           startTime: selectedTime,
           duration,
           amount: offeredPrice,
+          isNegotiated: true,
+          basePrice: basePrice,
         });
         
         setBookingData(bookingResponse.data.booking);
@@ -221,17 +220,20 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     (async () => {
       try {
         const { data } = await http.get(`/slots/${selectedCourt}`, { params: { date: selectedDate } });
+        let times: string[] = [];
+        const avail = (data || []).filter((s:any) => !s.isBlocked && !s.isBooked);
+        times = Array.from(new Set(avail.map((s:any) => s.start))) as string[];
+        if (!times.length) {
+          // Fallback to computed availability
+          const { data: alt } = await http.get('/bookings/available-times', { params: { court: selectedCourt, date: selectedDate } });
+          times = alt || [];
+        }
         if (!ignore) {
-          const avail = (data || []).filter((s:any) => !s.isBlocked && !s.isBooked);
-          // map available slots if needed in future
-          const times = Array.from(new Set(avail.map((s:any) => s.start))) as string[];
           times.sort();
           setTimeSlots(times);
-          // Only set selected time if there are available slots and current selection is not in the list
           if (times.length && !times.includes(selectedTime)) {
             setSelectedTime(times[0]);
           } else if (times.length === 0) {
-            // Clear selected time if no slots available
             setSelectedTime('');
           }
         }
