@@ -55,8 +55,8 @@ export const facilityOwnerAPI = {
   getDashboardStats: async (ownerId: string): Promise<FacilityOwnerStats> => {
     console.log('Calling API for dashboard stats with ownerId:', ownerId);
     try {
-      // Use the correct API endpoint path
-      const response = await http.get(`/facility-owner/dashboard-stats/${ownerId}`);
+  // Switched to unified stats endpoint that already returns rich charts
+  const response = await http.get(`/stats/facility-owner/${ownerId}`);
       console.log('Raw API response:', response);
       
       // For development or if API returns empty data, use mock data
@@ -89,18 +89,29 @@ export const facilityOwnerAPI = {
         recentActivity: []
       };
       
-      // Transform kpis from array to object format if needed
+      // kpis from stats endpoint already an object; if legacy array, convert
       if (Array.isArray(data.kpis)) {
-        console.log('Transforming kpis array to object format');
         data.kpis.forEach((kpi: any) => {
-          if (kpi.label === 'Total Bookings' || kpi.label === 'Upcoming Bookings') transformedData.kpis.totalBookings = kpi.value;
-          if (kpi.label === 'Total Revenue' || kpi.label === 'Revenue') transformedData.kpis.totalEarnings = kpi.value;
-          if (kpi.label === 'Facilities') transformedData.kpis.totalFacilities = kpi.value;
-          if (kpi.label === 'Courts') transformedData.kpis.activeCourts = kpi.value;
+          const label = (kpi.label || '').toLowerCase();
+          if (label.includes('total booking') || label.includes('upcoming')) transformedData.kpis.totalBookings = kpi.value;
+          if (label.includes('revenue') || label.includes('earning')) transformedData.kpis.totalEarnings = kpi.value;
+          if (label.includes('facilit')) transformedData.kpis.totalFacilities = kpi.value;
+          if (label.includes('court')) transformedData.kpis.activeCourts = kpi.value;
         });
       } else if (data.kpis && typeof data.kpis === 'object') {
-        // If kpis is already an object, use it directly
-        transformedData.kpis = data.kpis;
+        const k = data.kpis;
+        const computedTotalBookings = k.totalBookings != null
+          ? k.totalBookings
+          : ((k.confirmedBookings ?? 0) + (k.cancelledBookings ?? 0) + (k.completedBookings ?? 0));
+        transformedData.kpis = {
+          totalBookings: computedTotalBookings,
+          confirmedBookings: k.confirmedBookings ?? 0,
+          cancelledBookings: k.cancelledBookings ?? 0,
+          completedBookings: k.completedBookings ?? 0,
+          totalEarnings: k.totalEarnings ?? k.totalRevenue ?? 0,
+          activeCourts: k.activeCourts ?? k.courts ?? 0,
+          totalFacilities: k.totalFacilities ?? k.facilities ?? 0
+        } as any;
       }
       
       // Transform recentActivity data if needed
@@ -130,18 +141,22 @@ export const facilityOwnerAPI = {
         console.log('Transforming charts data');
         
         // Transform bookingsByDay to dailyBookings if needed
+        // Map legacy bookingsByDay -> dailyBookings
         if (data.charts.bookingsByDay && !data.charts.dailyBookings) {
           transformedData.charts.dailyBookings = data.charts.bookingsByDay.map((item: any) => ({
-            _id: item.date,
-            count: item.count,
+            _id: item.date || item._id,
+            count: item.count ?? 0,
             revenue: item.revenue || 0
           }));
-        } else if (data.charts.dailyBookings) {
-          transformedData.charts.dailyBookings = data.charts.dailyBookings;
         }
+        if (data.charts.dailyBookings) transformedData.charts.dailyBookings = data.charts.dailyBookings;
         
         // Use other chart data if available
-        if (data.charts.monthlyRevenue) transformedData.charts.monthlyRevenue = data.charts.monthlyRevenue;
+        if (data.charts.monthlyRevenue) transformedData.charts.monthlyRevenue = data.charts.monthlyRevenue.map((m: any) => ({
+          _id: m._id,
+          revenue: m.revenue ?? m.total ?? 0,
+          count: m.count ?? 0
+        }));
         if (data.charts.peakHours) transformedData.charts.peakHours = data.charts.peakHours;
         if (data.charts.sportDistribution) transformedData.charts.sportDistribution = data.charts.sportDistribution;
       }
