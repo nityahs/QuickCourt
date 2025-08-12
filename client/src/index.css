@@ -2,24 +2,112 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Sporty subtle background grid */
+/* Theme Variables */
+:root {
+  /* Light Theme (Default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --accent-primary: #10b981;
+  --accent-secondary: #22d3ee;
+  --border-color: #e5e7eb;
+  --shadow-color: rgba(0, 0, 0, 0.06);
+  --gradient-start: rgba(16,185,129,0.10);
+  --gradient-end: rgba(59,130,246,0.10);
+  
+  /* Card and UI Elements */
+  --card-bg: #ffffff;
+  --card-border: rgba(229, 231, 235, 0.5);
+  --input-bg: #ffffff;
+  --button-text: #ffffff;
+  --button-primary-bg: #10b981;
+  --button-primary-hover: #059669;
+  --button-secondary-bg: #6b7280;
+  --button-secondary-hover: #4b5563;
+  --header-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --badge-bg: #f3f4f6;
+  --badge-text: #4b5563;
+}
+
+.dark-theme {
+  --bg-primary: #0f172a; /* Darker background */
+  --bg-secondary: #1e293b; /* Darker secondary background */
+  --text-primary: #f8fafc; /* White text for primary content */
+  --text-secondary: #94a3b8; /* Light gray for secondary text */
+  --accent-primary: #10b981;
+  --accent-secondary: #0ea5e9;
+  --border-color: #334155; /* Darker border */
+  --shadow-color: rgba(0, 0, 0, 0.5); /* Darker shadow */
+  --gradient-start: rgba(16,185,129,0.08); /* More subtle gradient */
+  --gradient-end: rgba(59,130,246,0.08); /* More subtle gradient */
+  
+  /* Card and UI Elements */
+  --card-bg: #1e293b; /* Darker card background */
+  --card-border: rgba(51, 65, 85, 0.6); /* Darker card border */
+  --input-bg: rgba(30, 41, 59, 0.8); /* Darker input background */
+  --button-text: #f8fafc; /* White text for buttons */
+  --button-primary-bg: #10b981;
+  --button-primary-hover: #059669;
+  --button-secondary-bg: #475569; /* Darker secondary button */
+  --button-secondary-hover: #334155; /* Darker secondary button hover */
+  --header-bg: rgba(15, 23, 42, 0.9); /* Darker header with more opacity */
+  --glass-bg: rgba(15, 23, 42, 0.7); /* Darker glass effect */
+  --badge-bg: #334155; /* Darker badge background */
+  --badge-text: #cbd5e1; /* Light gray badge text */
+}
+
+.colorblind-theme {
+  /* High contrast theme for colorblind users */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f0f0f0;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --accent-primary: #0057b7; /* Blue that works well for most color vision deficiencies */
+  --accent-secondary: #000000;
+  --border-color: #666666;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --gradient-start: rgba(0,87,183,0.10);
+  --gradient-end: rgba(0,0,0,0.05);
+  
+  /* Card and UI Elements */
+  --card-bg: #ffffff;
+  --card-border: rgba(102, 102, 102, 0.5);
+  --input-bg: #f0f0f0;
+  --button-text: #ffffff;
+  --button-primary-bg: #0057b7;
+  --button-primary-hover: #003f87;
+  --button-secondary-bg: #333333;
+  --button-secondary-hover: #000000;
+  --header-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg: rgba(240, 240, 240, 0.8);
+  --badge-bg: #e0e0e0;
+  --badge-text: #000000;
+}
+
+/* Apply theme to body */
 body {
-  background:
-    radial-gradient(circle at 20% 20%, rgba(16,185,129,0.10), transparent 40%),
-    radial-gradient(circle at 80% 30%, rgba(59,130,246,0.10), transparent 45%),
-    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  background-image:
+    radial-gradient(circle at 20% 20%, var(--gradient-start), transparent 40%),
+    radial-gradient(circle at 80% 30%, var(--gradient-end), transparent 45%);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Glass effect helper */
 .glass {
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  background: var(--glass-bg);
+  box-shadow: 0 10px 30px var(--shadow-color);
   backdrop-filter: blur(10px);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
 }
 
 /* Gradient text utility */
 .text-gradient {
-  background: linear-gradient(90deg, #10b981, #22d3ee);
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -51,4 +139,77 @@ body {
 /* Shadow utility for sporty elements */
 .shadow-sporty {
   box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
+}
+
+.dark-theme .shadow-sporty {
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.25);
+}
+
+.colorblind-theme .shadow-sporty {
+  box-shadow: 0 4px 20px rgba(0, 87, 183, 0.2);
+}
+
+/* Additional theme-specific styles for common UI elements */
+
+/* Card styles */
+.bg-white, .bg-white\/80 {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary);
+  border-color: var(--card-border) !important;
+}
+
+/* Button styles */
+.bg-emerald-500, .bg-green-500, .bg-blue-500, .bg-blue-600 {
+  background-color: var(--button-primary-bg) !important;
+  color: var(--button-text) !important;
+}
+
+.hover\:bg-emerald-600:hover, .hover\:bg-green-600:hover, .hover\:bg-blue-600:hover, .hover\:bg-blue-700:hover {
+  background-color: var(--button-primary-hover) !important;
+}
+
+.bg-gray-500, .bg-gray-600 {
+  background-color: var(--button-secondary-bg) !important;
+}
+
+.hover\:bg-gray-600:hover, .hover\:bg-gray-700:hover {
+  background-color: var(--button-secondary-hover) !important;
+}
+
+/* Input styles */
+input, select, textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Text colors */
+.text-gray-900 {
+  color: var(--text-primary) !important;
+}
+
+.text-gray-600, .text-gray-700, .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+  background-color: var(--accent-primary);
+  color: var(--button-text);
 }

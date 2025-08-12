@@ -130,7 +130,7 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={onBack}
-          className="flex items-center text-gray-600 hover:text-gray-900"
+          className="flex items-center" style={{ color: 'var(--text-secondary, #4b5563)' }}
         >
           <ArrowLeft size={20} className="mr-2" />
           Back
@@ -140,8 +140,8 @@ const VenueDetails: React.FC<VenueDetailsProps> = ({ venue, onBack, onBookVenue 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{venue.name}</h1>
-          <div className="flex items-center text-gray-600 mb-6">
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary, #111827)' }}>{venue.name}</h1>
+          <div className="flex items-center mb-6" style={{ color: 'var(--text-secondary, #4b5563)' }}>
             <MapPin size={16} className="mr-1" />
             <span>{venue.address}</span>
             <div className="flex items-center ml-4">

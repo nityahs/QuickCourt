@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Menu, X, User, LogOut, Search } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSearch } from '../../contexts/SearchContext';
+import ThemeToggle from '../Theme/ThemeToggle';
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -26,7 +27,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
   };
 
   return (
-    <header className="backdrop-blur bg-white/70 border-b border-white/60 sticky top-0 z-50">
+    <header className="backdrop-blur sticky top-0 z-50 border-b transition-colors duration-300" style={{ backgroundColor: 'var(--header-bg, rgba(255, 255, 255, 0.7))', borderColor: 'var(--border-color, rgba(255, 255, 255, 0.6))' }}>
       <div className="relative">
         <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-emerald-400/50 via-sky-400/50 to-blue-400/50" />
       </div>
@@ -36,7 +37,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
           <div className="flex items-center">
             <button
               onClick={onMenuToggle}
-              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-white/60"
+              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900"
+              style={{ backgroundColor: 'var(--bg-secondary, rgba(249, 250, 251, 0.6))' }}
             >
               {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -104,13 +106,20 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search venues..."
-                className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="block w-full pl-10 pr-3 py-2 rounded-md shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-300"
+                style={{ 
+                  backgroundColor: 'var(--input-bg, rgba(255, 255, 255, 0.7))', 
+                  borderColor: 'var(--border-color, rgba(255, 255, 255, 0.6))',
+                  color: 'var(--text-primary)',
+                }}
               />
             </form>
           </div>
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {/* Theme Toggle */}
+            <ThemeToggle />
             {user ? (
               <div className="relative">
                 <button
@@ -132,11 +141,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 z-50" style={{ backgroundColor: 'var(--card-bg, white)' }}>
                     {user.role === 'facility_owner' && (
                       <a
                         href="/facility-owner"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block px-4 py-2 text-sm" style={{ color: 'var(--text-secondary, #4b5563)', ':hover': { backgroundColor: 'var(--bg-secondary, #f9fafb)' } }}
                         onClick={(e) => {
                           e.preventDefault();
                           setShowUserMenu(false);
@@ -150,7 +159,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                     {user.role === 'admin' && (
                       <a
                         href="/admin"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block px-4 py-2 text-sm" style={{ color: 'var(--text-secondary, #4b5563)', ':hover': { backgroundColor: 'var(--bg-secondary, #f9fafb)' } }}
                         onClick={(e) => {
                           e.preventDefault();
                           setShowUserMenu(false);
@@ -163,7 +172,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                     )}
                     <a
                       href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="block px-4 py-2 text-sm" style={{ color: 'var(--text-secondary, #4b5563)', ':hover': { backgroundColor: 'var(--bg-secondary, #f9fafb)' } }}
                       onClick={(e) => {
                         e.preventDefault();
                         setShowUserMenu(false);
@@ -177,7 +186,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
                     {user.role !== 'facility_owner' && user.role !== 'admin' && (
                       <a
                         href="/bookings"
-                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        className="block px-4 py-2 text-sm" style={{ color: 'var(--text-secondary, #4b5563)', ':hover': { backgroundColor: 'var(--bg-secondary, #f9fafb)' } }}
                         onClick={(e) => {
                           e.preventDefault();
                           setShowUserMenu(false);
@@ -238,7 +247,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle, showMobileMenu, onLogin, 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search venues..."
-            className="block w-full pl-10 pr-3 py-2 rounded-md bg-white/70 border border-white/60 shadow-inner placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="block w-full pl-10 pr-3 py-2 rounded-md shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors duration-300"
+            style={{ 
+              backgroundColor: 'var(--input-bg, rgba(255, 255, 255, 0.7))', 
+              borderColor: 'var(--border-color, rgba(255, 255, 255, 0.6))',
+              color: 'var(--text-primary)',
+            }}
           />
         </form>
       </div>

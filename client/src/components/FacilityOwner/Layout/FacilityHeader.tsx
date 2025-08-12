@@ -69,7 +69,7 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
   };
 
   return (
-    <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200/50 shadow-sm">
+    <header className="backdrop-blur-xl border-b shadow-sm" style={{ backgroundColor: 'var(--header-bg, rgba(255, 255, 255, 0.8))', borderColor: 'var(--border-color, rgba(229, 231, 235, 0.5))' }}>
       <div className="flex items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
         {/* Left side - Menu button and breadcrumbs */}
         <div className="flex items-center space-x-4">
@@ -77,7 +77,7 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
             onClick={onMenuToggle}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="lg:hidden p-2 rounded-lg transition-colors" style={{ backgroundColor: 'var(--bg-secondary, #f9fafb)', color: 'var(--text-secondary, #4b5563)' }}
             aria-label="Toggle sidebar menu"
           >
             <Menu className="w-5 h-5 text-gray-600" />
@@ -99,7 +99,7 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
                     {crumb.label}
                   </a>
                 ) : (
-                  <span className="text-sm font-medium text-gray-900">{crumb.label}</span>
+                  <span className="text-sm font-medium" style={{ color: 'var(--text-primary, #111827)' }}>{crumb.label}</span>
                 )}
               </div>
             ))}
@@ -112,7 +112,8 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="relative p-2 rounded-lg transition-colors"
+            style={{ backgroundColor: 'var(--bg-secondary, #f9fafb)', color: 'var(--text-secondary, #4b5563)' }}
           >
             <Bell className="w-5 h-5 text-gray-600" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
@@ -121,7 +122,8 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
           {/* User profile */}
           <motion.div
             whileHover={{ scale: 1.02 }}
-            className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+            className="flex items-center space-x-3 p-2 rounded-lg transition-colors cursor-pointer"
+            style={{ backgroundColor: 'var(--bg-secondary, #f9fafb)' }}
           >
             <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-full flex items-center justify-center">
               {user?.avatar ? (
@@ -135,8 +137,8 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
               )}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-              <p className="text-xs text-gray-500">Facility Owner</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--text-primary, #111827)' }}>{user?.fullName}</p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary, #4b5563)' }}>Facility Owner</p>
             </div>
           </motion.div>
         </div>
@@ -144,7 +146,7 @@ const FacilityHeader: React.FC<FacilityHeaderProps> = ({ onMenuToggle }) => {
 
       {/* Page title for mobile */}
       <div className="sm:hidden px-4 pb-4">
-        <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary, #111827)' }}>{pageTitle}</h1>
       </div>
     </header>
   );

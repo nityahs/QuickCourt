@@ -74,11 +74,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         initial={false}
         animate={{ x: isOpen ? 0 : '-100%' }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/50 shadow-xl`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 backdrop-blur-xl shadow-xl`}
+        style={{ backgroundColor: 'var(--header-bg, rgba(255, 255, 255, 0.8))', borderRight: '1px solid var(--border-color, rgba(229, 231, 235, 0.5))' }}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200/50">
+          <div className="flex items-center justify-between p-6" style={{ borderBottom: '1px solid var(--border-color, rgba(229, 231, 235, 0.5))' }}>
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">QC</span>
@@ -89,7 +90,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </div>
             <button
               onClick={onToggle}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-lg transition-colors"
+              style={{ backgroundColor: 'var(--bg-secondary, #f9fafb)', color: 'var(--text-secondary, #4b5563)' }}
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
@@ -107,13 +109,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   onClick={() => handleNavigation(item.path)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-green-500/10 to-blue-500/10 text-green-700 border border-green-200/50'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200`}
+                  style={{
+                    backgroundColor: isActive ? 'var(--gradient-start, rgba(16,185,129,0.10))' : 'transparent',
+                    color: isActive ? 'var(--accent-primary, #10b981)' : 'var(--text-secondary, #4b5563)',
+                    border: isActive ? `1px solid var(--border-color, rgba(229, 231, 235, 0.5))` : 'none'
+                  }}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-green-600' : 'text-gray-500'}`} />
+                  <Icon className="w-5 h-5" style={{ color: isActive ? 'var(--accent-primary, #10b981)' : 'var(--text-secondary, #4b5563)' }} />
                   <span className="font-medium">{item.label}</span>
                 </motion.div>
               );
@@ -121,12 +124,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200/50">
+          <div className="p-4" style={{ borderTop: '1px solid var(--border-color, rgba(229, 231, 235, 0.5))' }}>
             <motion.button
               onClick={handleLogout}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="flex items-center space-x-3 w-full px-4 py-3 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200"
+              className="flex items-center space-x-3 w-full px-4 py-3 rounded-xl transition-all duration-200"
+              style={{ color: 'var(--text-secondary, #4b5563)', backgroundColor: 'var(--bg-secondary, #f9fafb)' }}
             >
               <LogOut className="w-5 h-5" />
               <span className="font-medium">Logout</span>

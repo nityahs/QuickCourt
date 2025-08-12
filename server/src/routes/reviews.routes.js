@@ -20,24 +20,18 @@ r.get('/facility/:id', async (req, res) => {
       .populate('userId', 'name email'),
     Review.countDocuments(filter)
   ]);
-
-  // Debug logging
-  console.log(`\n=== DEBUG: Reviews for facility ${req.params.id} ===`);
-  console.log(`Total reviews found: ${rows.length}`);
-  rows.forEach((review, i) => {
-    console.log(`Review ${i + 1}:`, {
-      _id: review._id,
-      rating: review.rating,
-      text: review.text,
-      hasText: !!review.text,
-      textLength: review.text?.length || 0,
-      userId: review.userId?.name || 'No user',
-      createdAt: review.createdAt
-    });
+  
+  // Ensure each review has a comment field for client compatibility
+  const processedRows = rows.map(row => {
+    const reviewObj = row.toObject();
+    // Map text field to comment for client-side compatibility
+    if (reviewObj.text) {
+      reviewObj.comment = reviewObj.text;
+    }
+    return reviewObj;
   });
-  console.log('=== END DEBUG ===\n');
 
-  res.json({ data: rows, total, page, limit });
+  res.json({ data: processedRows, total, page, limit });
 });
 
 // Create a review (auth required) and recompute facility rating stats
@@ -45,7 +39,14 @@ r.post('/', auth, async (req, res) => {
   if (req.user?.role !== 'user') {
     return res.status(403).json({ error: 'Only players can leave reviews' });
   }
-  const doc = await Review.create({ ...req.body, userId: req.user._id });
+  
+  // Map comment field to text field in the database
+  const reviewData = { ...req.body, userId: req.user._id };
+  if (reviewData.comment) {
+    reviewData.text = reviewData.comment;
+  }
+  
+  const doc = await Review.create(reviewData);
   // recompute facility rating
   const agg = await Review.aggregate([
     { $match: { facilityId: doc.facilityId } },

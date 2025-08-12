@@ -3,6 +3,7 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SearchProvider } from './contexts/SearchContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Layout/Header';
 import MobileMenu from './components/Layout/MobileMenu';
 import AuthModal from './components/Auth/AuthModal';
@@ -115,7 +116,9 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <SearchProvider>
-            <AppContent />
+            <ThemeProvider>
+              <AppContent />
+            </ThemeProvider>
           </SearchProvider>
         </SocketProvider>
       </AuthProvider>
