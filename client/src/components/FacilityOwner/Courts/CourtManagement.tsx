@@ -1,47 +1,50 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, MapPin, DollarSign, Clock, Edit, Trash2, Building2 } from 'lucide-react';
+import CourtForm from './CourtForm';
 
 interface Court {
-  id: string;
+  _id: string;
   name: string;
-  sportType: string;
+  sport: string;
   pricePerHour: number;
   facilityId: string;
-  facilityName: string;
-  isActive: boolean;
-  operatingHours: {
+  facilityName?: string;
+  status?: string;
+  operatingHours?: {
     start: string;
     end: string;
   };
 }
 
+import { facilityOwnerAPI, facilityOwnerCourtAPI, facilityOwnerManagementAPI } from '../../../services/facilityOwner';
+
 const CourtManagement: React.FC = () => {
-  const [courts, setCourts] = useState<Court[]>([
-    {
-      id: '1',
-      name: 'Tennis Court 1',
-      sportType: 'Tennis',
-      pricePerHour: 45,
-      facilityId: '1',
-      facilityName: 'Elite Sports Complex',
-      isActive: true,
-      operatingHours: { start: '06:00', end: '22:00' }
-    },
-    {
-      id: '2',
-      name: 'Basketball Court',
-      sportType: 'Basketball',
-      pricePerHour: 35,
-      facilityId: '1',
-      facilityName: 'Elite Sports Complex',
-      isActive: true,
-      operatingHours: { start: '06:00', end: '22:00' }
-    }
-  ]);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
+  
+  // Fetch courts from the backend
+  useEffect(() => {
+    const fetchCourts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await facilityOwnerAPI.getOwnerCourts();
+        setCourts(response.data);
+      } catch (err: any) {
+        console.error('Error fetching courts:', err);
+        setError(err.response?.data?.error || 'Failed to load courts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCourts();
+  }, []);
 
   const handleAddCourt = () => {
     setEditingCourt(null);
@@ -52,14 +55,42 @@ const CourtManagement: React.FC = () => {
     setEditingCourt(court);
     setShowForm(true);
   };
-
-  const handleDeleteCourt = (courtId: string) => {
-    if (window.confirm('Are you sure you want to delete this court?')) {
-      setCourts(courts.filter(c => c.id !== courtId));
+  
+  const handleSaveCourt = async (courtData: any) => {
+    try {
+      if (editingCourt?._id) {
+        // Update existing court
+        const response = await facilityOwnerCourtAPI.updateCourt(editingCourt._id, courtData);
+        setCourts(courts.map(c => 
+          c._id === editingCourt._id ? response.data : c
+        ));
+      } else {
+        // Add new court
+        const response = await facilityOwnerCourtAPI.createCourt(courtData);
+        setCourts([response.data, ...courts]);
+      }
+      setShowForm(false);
+      setEditingCourt(null);
+    } catch (err: any) {
+      console.error('Error saving court:', err);
+      alert(err.response?.data?.error || 'Failed to save court');
     }
   };
 
-  const getStatusBadge = (isActive: boolean) => {
+  const handleDeleteCourt = async (courtId: string) => {
+    if (window.confirm('Are you sure you want to delete this court?')) {
+      try {
+        await facilityOwnerManagementAPI.deleteCourt(courtId);
+        setCourts(courts.filter(c => c._id !== courtId));
+      } catch (err: any) {
+        console.error('Error deleting court:', err);
+        alert(err.response?.data?.error || 'Failed to delete court');
+      }
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    const isActive = status === 'active' || status === undefined;
     return (
       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
         isActive 
@@ -73,6 +104,19 @@ const CourtManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
@@ -94,7 +138,7 @@ const CourtManagement: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {courts.map((court, index) => (
           <motion.div
-            key={court.id}
+            key={court._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -107,14 +151,14 @@ const CourtManagement: React.FC = () => {
                   <h3 className="text-xl font-bold text-gray-900 mb-1">{court.name}</h3>
                   <p className="text-sm text-gray-500">{court.facilityName}</p>
                 </div>
-                {getStatusBadge(court.isActive)}
+                {getStatusBadge(court.status)}
               </div>
 
               {/* Details */}
               <div className="space-y-3 mb-6">
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">{court.sportType}</span>
+                  <span className="text-sm text-gray-600">{court.sport}</span>
                 </div>
                 
                 <div className="flex items-center space-x-2">
@@ -125,7 +169,7 @@ const CourtManagement: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4 text-gray-400" />
                   <span className="text-sm text-gray-600">
-                    {court.operatingHours.start} - {court.operatingHours.end}
+                    {court.operatingHours ? `${court.operatingHours.start} - ${court.operatingHours.end}` : '06:00 - 22:00'}
                   </span>
                 </div>
               </div>
@@ -145,7 +189,7 @@ const CourtManagement: React.FC = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => handleDeleteCourt(court.id)}
+                  onClick={() => handleDeleteCourt(court._id)}
                   className="flex-1 flex items-center justify-center space-x-2 bg-red-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-600 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -158,7 +202,7 @@ const CourtManagement: React.FC = () => {
       </div>
 
       {/* Empty State */}
-      {courts.length === 0 && (
+      {!loading && courts.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -176,6 +220,20 @@ const CourtManagement: React.FC = () => {
           </button>
         </motion.div>
       )}
+      
+      {/* Court Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <CourtForm
+            court={editingCourt}
+            onSave={handleSaveCourt}
+            onCancel={() => {
+              setShowForm(false);
+              setEditingCourt(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

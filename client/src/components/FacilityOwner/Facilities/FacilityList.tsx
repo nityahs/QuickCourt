@@ -168,6 +168,26 @@ const FacilityList: React.FC = () => {
         </motion.button>
       </div>
 
+      {/* Status Info Alert */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h3 className="font-medium text-blue-800 mb-2">Facility Status Information</h3>
+        <p className="text-blue-700 mb-2">
+          Only <span className="font-bold">approved</span> facilities can be used to create courts. 
+          New facilities start with <span className="font-bold">pending</span> status and must be approved by an administrator.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            Pending: Awaiting approval
+          </span>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            Approved: Ready to use
+          </span>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            Rejected: Needs revision
+          </span>
+        </div>
+      </div>
+
       {/* Search and Filters */}
       <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -199,7 +219,7 @@ const FacilityList: React.FC = () => {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-blue-50 border-blue-300"
           >
             <option value="all">All Status</option>
             <option value="approved">Approved</option>
