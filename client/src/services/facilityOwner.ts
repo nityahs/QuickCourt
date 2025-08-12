@@ -55,10 +55,11 @@ export const facilityOwnerAPI = {
   getDashboardStats: async (ownerId: string): Promise<FacilityOwnerStats> => {
     console.log('Calling API for dashboard stats with ownerId:', ownerId);
     try {
+      // Use the correct API endpoint path
       const response = await http.get(`/facility-owner/dashboard-stats/${ownerId}`);
       console.log('Raw API response:', response);
       
-      // If the API isn't ready yet, return mock data for development
+      // For development or if API returns empty data, use mock data
       if (!response.data || Object.keys(response.data).length === 0) {
         console.log('Using mock data for dashboard');
         return getMockDashboardData();
@@ -92,8 +93,8 @@ export const facilityOwnerAPI = {
       if (Array.isArray(data.kpis)) {
         console.log('Transforming kpis array to object format');
         data.kpis.forEach((kpi: any) => {
-          if (kpi.label === 'Total Bookings') transformedData.kpis.totalBookings = kpi.value;
-          if (kpi.label === 'Revenue') transformedData.kpis.totalEarnings = kpi.value;
+          if (kpi.label === 'Total Bookings' || kpi.label === 'Upcoming Bookings') transformedData.kpis.totalBookings = kpi.value;
+          if (kpi.label === 'Total Revenue' || kpi.label === 'Revenue') transformedData.kpis.totalEarnings = kpi.value;
           if (kpi.label === 'Facilities') transformedData.kpis.totalFacilities = kpi.value;
           if (kpi.label === 'Courts') transformedData.kpis.activeCourts = kpi.value;
         });
@@ -155,13 +156,34 @@ export const facilityOwnerAPI = {
   },
 
   // Get all facilities for an owner
-  getOwnerFacilities: (): Promise<{ data: any[] }> => {
-    return http.get('/facility-owner/facilities');
+  getOwnerFacilities: async (): Promise<{ data: any[] }> => {
+    const res = await http.get('/facility-owner/facilities');
+    // Unwrap nested data returned by the API { data: facilities }
+    return { data: res.data?.data ?? [] };
+  },
+
+  // Create a new facility
+  createFacility: async (data: any): Promise<{ data: any }> => {
+    const res = await http.post('/facility-owner/facilities', data);
+    return { data: res.data?.data };
+  },
+
+  // Update an existing facility
+  updateFacility: async (facilityId: string, data: any): Promise<{ data: any }> => {
+    const res = await http.put(`/facility-owner/facilities/${facilityId}`, data);
+    return { data: res.data?.data };
+  },
+
+  // Delete a facility
+  deleteFacility: async (facilityId: string): Promise<{ success: boolean; message?: string }> => {
+    const res = await http.delete(`/facility-owner/facilities/${facilityId}`);
+    return { success: !!res.data?.success, message: res.data?.message };
   },
 
   // Get all courts for an owner's facilities
-  getOwnerCourts: (): Promise<{ data: any[] }> => {
-    return http.get('/facility-owner/courts');
+  getOwnerCourts: async (): Promise<{ data: any[] }> => {
+    const res = await http.get('/facility-owner/courts');
+    return { data: res.data?.data ?? [] };
   }
 };
 

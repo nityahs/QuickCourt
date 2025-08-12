@@ -4,10 +4,8 @@ import {
   MapPin, 
   Star, 
   Clock, 
-  Users, 
   Edit, 
   Trash2, 
-  Eye,
   Building2,
   CheckCircle,
   Clock as ClockIcon
@@ -103,7 +101,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
             {facility.name}
           </h3>
           <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-            {facility.description}
+            {facility.description || 'No description provided'}
           </p>
           
           {/* Rating */}
@@ -123,13 +121,15 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         {/* Details */}
         <div className="space-y-3 mb-6">
           {/* Location */}
-          <div className="flex items-start space-x-2">
+            <div className="flex items-start space-x-2">
             <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-gray-900">{facility.address}</p>
-              <p className="text-xs text-gray-500">
-                {facility.geolocation.lat.toFixed(6)}, {facility.geolocation.lng.toFixed(6)}
-              </p>
+              {facility.geolocation && typeof facility.geolocation.lat === 'number' && typeof facility.geolocation.lng === 'number' && (
+                <p className="text-xs text-gray-500">
+                  {facility.geolocation.lat.toFixed(6)}, {facility.geolocation.lng.toFixed(6)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -145,7 +145,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         {/* Sport Types */}
         <div className="mb-6">
           <div className="flex flex-wrap gap-2">
-            {facility.sports.map((sport, index) => (
+            {(facility.sports || []).map((sport, index) => (
               <span
                 key={index}
                 className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full"

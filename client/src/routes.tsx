@@ -16,6 +16,9 @@ import AdminDashboard from './components/Admin/AdminDashboard';
 import TestLauncher from './components/Test/TestLauncher';
 import AvailabilityCalendar from './components/FacilityOwner/TimeSlots/AvailabilityCalendar';
 import FacilityOwnerLayout from './components/FacilityOwner/Layout/FacilityOwnerLayout';
+import FacilityList from './components/FacilityOwner/Facilities/FacilityList';
+import BookingOverview from './components/FacilityOwner/Bookings/BookingOverview';
+import CourtManagement from './components/FacilityOwner/Courts/CourtManagement';
 import { Venue, Court } from './types';
 
 // Transform server facility data to frontend venue format
@@ -424,19 +427,7 @@ const BookingPage = () => {
 // Placeholder components for future implementation
 const OwnerFacilitiesPage = () => (
   <FacilityOwnerLayout>
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Facilities</h1>
-          <p className="text-gray-600 mt-2">Manage your sports facilities and venues</p>
-        </div>
-      </div>
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
-        <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Facilities - Coming Soon</h2>
-        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
-      </div>
-    </div>
+    <FacilityList />
   </FacilityOwnerLayout>
 );
 
@@ -478,37 +469,13 @@ const EditFacilityPage = () => (
 
 const OwnerBookingsPage = () => (
   <FacilityOwnerLayout>
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bookings</h1>
-          <p className="text-gray-600 mt-2">Manage all bookings for your facilities</p>
-        </div>
-      </div>
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
-        <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Bookings - Coming Soon</h2>
-        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
-      </div>
-    </div>
+    <BookingOverview />
   </FacilityOwnerLayout>
 );
 
 const OwnerCourtsPage = () => (
   <FacilityOwnerLayout>
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Courts</h1>
-          <p className="text-gray-600 mt-2">Manage your sports courts</p>
-        </div>
-      </div>
-      <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 shadow-lg p-8 text-center">
-        <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Owner Courts - Coming Soon</h2>
-        <p className="text-gray-600 mb-6">We're working on this feature. Check back soon!</p>
-      </div>
-    </div>
+    <CourtManagement />
   </FacilityOwnerLayout>
 );
 

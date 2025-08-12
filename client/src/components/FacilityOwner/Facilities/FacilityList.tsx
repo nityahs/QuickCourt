@@ -3,15 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   Search, 
-  Filter, 
-  MapPin, 
-  Star, 
-  Edit, 
-  Trash2, 
-  Eye,
   Building2
 } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
 import { facilityOwnerAPI } from '../../../services/facilityOwner';
 import FacilityCard from './FacilityCard';
 import FacilityForm from './FacilityForm';
@@ -38,7 +31,7 @@ interface Facility {
 }
 
 const FacilityList: React.FC = () => {
-  const { user } = useAuth();
+  // Auth context available if needed in future
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +60,15 @@ const FacilityList: React.FC = () => {
   };
 
   const filteredFacilities = facilities.filter(facility => {
-    const matchesSearch = facility.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         facility.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSport = filterSport === 'all' || facility.sports.includes(filterSport);
-    const matchesStatus = filterStatus === 'all' || facility.status === filterStatus;
+    const name = facility.name || '';
+    const desc = facility.description || '';
+    const sports = facility.sports || [];
+    const status = facility.status || 'pending';
+
+    const matchesSearch = name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         desc.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSport = filterSport === 'all' || sports.includes(filterSport);
+    const matchesStatus = filterStatus === 'all' || status === filterStatus;
     
     return matchesSearch && matchesSport && matchesStatus;
   });
@@ -118,7 +116,7 @@ const FacilityList: React.FC = () => {
     }
   };
 
-  const allSportTypes = Array.from(new Set(facilities.flatMap(f => f.sports)));
+  const allSportTypes = Array.from(new Set(facilities.flatMap(f => f.sports || [])));
 
   if (loading) {
     return (
