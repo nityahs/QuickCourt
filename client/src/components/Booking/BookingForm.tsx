@@ -8,9 +8,10 @@ import { Venue } from '../../types';
 interface Court {
   _id: string;
   name: string;
-  sportType: string;
+  sport?: string; // server uses 'sport'
+  sportType?: string; // legacy/local naming
   pricePerHour: number;
-  courtType: string;
+  courtType?: string;
 }
 
 // Use shared Venue type from ../../types
@@ -36,9 +37,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedCourt, setSelectedCourt] = useState('');
-  const [selectedSport, setSelectedSport] = useState(venue.sportTypes[0]);
+  const [selectedSport, setSelectedSport] = useState(venue.sportTypes?.[0] || '');
   const [duration, setDuration] = useState(1);
-  const [courts, setCourts] = useState<Court[]>([]);
+  const [courts, setCourts] = useState<Court[]>(Array.isArray(venue.courts) ? (venue.courts as any) : []);
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
@@ -50,8 +51,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
 
   // Calculate total price
   const totalPrice = (() => {
-    const court = courts.find(court => court._id === selectedCourt);
-    return court ? court.pricePerHour * duration : 0;
+    if (!Array.isArray(courts)) return 0;
+    const court = courts.find(c => c && c._id === selectedCourt);
+    return court ? (court.pricePerHour || 0) * duration : 0;
   })();
 
   // Fetch courts when venue or sport changes
@@ -59,21 +61,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     const fetchCourts = async () => {
       try {
         const facilityId = venue._id || venue.id;
-        const response = await http.get(`/courts?facility=${facilityId}&sportType=${selectedSport}`);
-        setCourts(response.data);
-        if (response.data.length > 0) {
-          setSelectedCourt(response.data[0]._id);
+        if (!facilityId || !selectedSport) return;
+        // Server expects query params facilityId & sport and returns { data: Court[] }
+        const response = await http.get(`/courts`, { params: { facilityId, sport: selectedSport } });
+        const list = Array.isArray(response.data?.data) ? response.data.data : Array.isArray(response.data) ? response.data : [];
+        setCourts(list);
+        if (list.length > 0) {
+          // Preserve existing selection if still present
+            setSelectedCourt(prev => (prev && list.some((c: Court) => c._id === prev) ? prev : list[0]._id));
         } else {
           setSelectedCourt('');
         }
       } catch (error) {
         console.error('Failed to fetch courts:', error);
+        setCourts([]);
+        setSelectedCourt('');
       }
     };
-
-    if ((venue._id || venue.id) && selectedSport) {
-      fetchCourts();
-    }
+    fetchCourts();
   }, [venue._id, venue.id, selectedSport]);
 
   // Fetch available time slots
@@ -253,7 +258,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                   onChange={(e) => setSelectedSport(e.target.value)}
                   className="block w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {venue.sportTypes.map(sport => (
+                  {venue.sportTypes?.map(sport => (
                     <option key={sport} value={sport}>
                       {getSportEmoji(sport)} {sport}
                     </option>
@@ -325,7 +330,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Court
                 </label>
-                {courts.length > 0 ? (
+    {Array.isArray(courts) && courts.length > 0 ? (
                   <select
                     value={selectedCourt}
                     onChange={(e) => setSelectedCourt(e.target.value)}
@@ -333,7 +338,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                   >
                     {courts.map(court => (
                       <option key={court._id} value={court._id}>
-                        {court.name} - ₹{court.pricePerHour}/hr
+      {court.name} - ₹{court.pricePerHour || 0}/hr
                       </option>
                     ))}
                   </select>
