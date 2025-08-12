@@ -6,9 +6,18 @@ const r = Router();
 
 // GET list with filters
 r.get('/', async (req,res)=>{
-  const { facilityId, sport, isActive } = req.query;
+  const { facilityId, facilityIds, sport, isActive } = req.query;
   const filter = {};
-  if (facilityId) filter.facilityId = facilityId;
+  if (facilityIds) {
+    // support comma-separated list of facility IDs
+    const ids = String(facilityIds)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (ids.length) filter.facilityId = { $in: ids };
+  } else if (facilityId) {
+    filter.facilityId = facilityId;
+  }
   if (sport) filter.sport = sport;
   if (isActive !== undefined) filter.isActive = isActive === 'true';
   const docs = await Court.find(filter).sort({ name: 1 });
