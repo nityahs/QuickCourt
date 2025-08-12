@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Save, Building2, MapPin, Clock, DollarSign } from 'lucide-react';
+import { X, Save, Building2, MapPin, DollarSign } from 'lucide-react';
+import { Loader } from '@googlemaps/js-api-loader';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface FacilityFormProps {
   facility?: any;
@@ -9,6 +11,7 @@ interface FacilityFormProps {
 }
 
 const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel }) => {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: facility?.name || '',
     description: facility?.description || '',
@@ -19,24 +22,94 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
     },
     sports: facility?.sports || [],
     startingPricePerHour: facility?.startingPricePerHour || 0,
-    amenities: facility?.amenities || []
+    amenities: facility?.amenities || [],
+    photos: facility?.photos || [],
+    status: facility?.status || 'pending',
+    ratingAvg: facility?.ratingAvg ?? 0,
+    ratingCount: facility?.ratingCount ?? 0,
+    highlight: facility?.highlight ?? false
   });
 
   const [newSport, setNewSport] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
+  const [newPhotoUrl, setNewPhotoUrl] = useState('');
+  const [mapsStatus, setMapsStatus] = useState<'idle'|'loading'|'ready'|'error'|'no-key'>('idle');
+
+  // Google Places Autocomplete setup
+  const addressInputRef = useRef<HTMLInputElement | null>(null); // Fallback plain input
+  const autocompleteContainerRef = useRef<HTMLDivElement | null>(null); // Container for new element
+  const autocompleteElRef = useRef<any | null>(null);
+
+  useEffect(() => {
+    const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
+    if (!apiKey) { setMapsStatus('no-key'); return; }
+    setMapsStatus('loading');
+    const loader = new Loader({ apiKey, libraries: ['places'], version: 'weekly' });
+    loader.load().then(async (google) => {
+      try {
+        // Use new Places API importLibrary + PlaceAutocompleteElement
+        // @ts-ignore importLibrary available in modern Maps JS
+        const { PlaceAutocompleteElement } = await google.maps.importLibrary('places');
+        const el: any = new PlaceAutocompleteElement();
+        el.id = 'facility-place-autocomplete';
+        el.placeholder = 'Search address';
+        el.autocompleteoptions = { fields: ['formattedAddress', 'location'] };
+        el.addEventListener('gmp-placeselect', (e: any) => {
+          const place = e?.detail?.place; // New structured place
+            // formattedAddress & location basemap
+          const formatted = place?.formattedAddress;
+          // location is a LatLng object or {lat,lng}
+          const loc = place?.location;
+          if (formatted && loc) {
+            const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+            const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+            setFormData(prev => ({
+              ...prev,
+              address: formatted,
+              geolocation: { lat, lng }
+            }));
+          }
+        });
+        autocompleteElRef.current = el;
+        if (autocompleteContainerRef.current) {
+          autocompleteContainerRef.current.innerHTML = '';
+          autocompleteContainerRef.current.appendChild(el);
+        }
+        setMapsStatus('ready');
+      } catch (err) {
+        console.error('Failed to initialize new Places Autocomplete Element', err);
+        setMapsStatus('error');
+      }
+    }).catch((err) => {
+      console.error('Maps JS load error', err);
+      setMapsStatus('error');
+    });
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Transform form data to match backend model
     const transformedData = {
+      // Server-managed but include where applicable
+      _id: facility?._id,
+  ownerId: user?.id,
+      createdAt: facility?.createdAt,
+      updatedAt: facility?.updatedAt,
+      // Editable fields
       name: formData.name,
       description: formData.description,
       address: formData.address,
       geolocation: formData.geolocation,
       sports: formData.sports,
+      amenities: formData.amenities,
+      photos: formData.photos,
       startingPricePerHour: formData.startingPricePerHour,
-      amenities: formData.amenities
+      // Optional/meta
+      status: formData.status,
+      ratingAvg: formData.ratingAvg,
+      ratingCount: formData.ratingCount,
+      highlight: formData.highlight
     };
     
     onSave(transformedData);
@@ -55,7 +128,7 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
   const removeSport = (sport: string) => {
     setFormData(prev => ({
       ...prev,
-      sports: prev.sports.filter(s => s !== sport)
+  sports: prev.sports.filter((s: string) => s !== sport)
     }));
   };
 
@@ -72,8 +145,15 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
   const removeAmenity = (amenity: string) => {
     setFormData(prev => ({
       ...prev,
-      amenities: prev.amenities.filter(a => a !== amenity)
+  amenities: prev.amenities.filter((a: string) => a !== amenity)
     }));
+  };
+
+  const addPhoto = () => {
+    if (newPhotoUrl.trim()) {
+      setFormData(prev => ({ ...prev, photos: [newPhotoUrl.trim(), ...prev.photos] }));
+      setNewPhotoUrl('');
+    }
   };
 
   return (
@@ -143,30 +223,28 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
               <span>Location</span>
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700">Facility Address</label>
+              <div ref={autocompleteContainerRef} className="w-full" />
+              {/* Fallback input if maps failed */}
+              {(mapsStatus === 'no-key' || mapsStatus === 'error') && (
                 <input
                   type="text"
-                  required
+                  ref={addressInputRef}
                   value={formData.address}
                   onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="Street address"
+                  placeholder="Enter address manually"
                 />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.location}
-                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  placeholder="City/Area"
-                />
-              </div>
+              )}
+              <p className="text-xs text-gray-500">Lat: {formData.geolocation.lat || '—'} | Lng: {formData.geolocation.lng || '—'}</p>
+              {mapsStatus !== 'ready' && (
+                <p className="text-xs text-amber-600">
+                  {mapsStatus === 'no-key' && 'No Google Maps API key (VITE_GOOGLE_MAPS_API_KEY). Autocomplete disabled.'}
+                  {mapsStatus === 'loading' && 'Loading location autocomplete…'}
+                  {mapsStatus === 'error' && 'Autocomplete failed to load; check key, billing & restrictions.'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -214,7 +292,7 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {formData.sports.map((sport, index) => (
+                  {formData.sports.map((sport: string, index: number) => (
                     <span
                       key={index}
                       className="inline-flex items-center space-x-1 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
@@ -256,7 +334,7 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
             </div>
             
             <div className="flex flex-wrap gap-2">
-              {formData.amenities.map((amenity, index) => (
+              {formData.amenities.map((amenity: string, index: number) => (
                 <span
                   key={index}
                   className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
@@ -272,6 +350,43 @@ const FacilityForm: React.FC<FacilityFormProps> = ({ facility, onSave, onCancel 
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Photos (optional) */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Photos</h3>
+            <div className="flex space-x-2 mb-2">
+              <input
+                type="url"
+                value={newPhotoUrl}
+                onChange={(e) => setNewPhotoUrl(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Add photo URL"
+              />
+              <button
+                type="button"
+                onClick={addPhoto}
+                className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors"
+              >
+                Add
+              </button>
+            </div>
+            {formData.photos.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {formData.photos.map((url: string, i: number) => (
+                  <span key={i} className="inline-flex items-center space-x-2 px-3 py-1 bg-gray-100 rounded-full text-sm">
+                    <span className="truncate max-w-[180px]">{url}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, photos: prev.photos.filter((_: string, idx: number) => idx !== i) }))}
+                      className="hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Actions */}

@@ -50,7 +50,12 @@ const FacilityList: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await facilityOwnerAPI.getOwnerFacilities();
-      setFacilities(response.data);
+      console.log('Owner facilities raw response', response);
+      const list = Array.isArray(response.data) ? response.data : (Array.isArray((response as any)?.data?.data) ? (response as any).data.data : []);
+      if (!Array.isArray(response.data)) {
+        console.warn('Unexpected facilities response shape; using fallback parsed list');
+      }
+      setFacilities(list as Facility[]);
     } catch (err: any) {
       console.error('Error fetching facilities:', err);
       setError(err.response?.data?.error || 'Failed to load facilities');
