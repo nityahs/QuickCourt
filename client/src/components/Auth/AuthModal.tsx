@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
-
-// Debug log
-const DEBUG = true;
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -31,46 +29,85 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     }
   };
 
-  if (!isOpen) {
-    if (DEBUG) {
-      console.log('AuthModal not rendering because isOpen is false');
+  // Close on ESC
+  const handleKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Escape') onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKey);
+    } else {
+      document.removeEventListener('keydown', handleKey);
     }
-    return null;
-  }
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, handleKey]);
+
+  const overlayVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1 },
+    exit: { opacity: 0 }
+  };
+
+  const modalVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 10 },
+    visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 240, damping: 22 } },
+    exit: { opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.15 } }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
-
-        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-          <div className="absolute top-0 right-0 pt-4 pr-4">
-            <button
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 py-8 text-center">
+            {/* Overlay */}
+            <motion.div
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={overlayVariants}
               onClick={onClose}
-              className="bg-white rounded-md text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <X size={24} />
-            </button>
-          </div>
+            />
 
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            {mode === 'login' ? (
-              <LoginForm
-                onSwitchToSignup={() => handleSetMode('signup')}
-                onClose={onClose}
-              />
-            ) : (
-              <SignupForm
-                onSwitchToLogin={() => handleSetMode('login')}
-                onClose={onClose}
-              />
-            )}
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            {/* Modal */}
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={modalVariants}
+              className="relative inline-block align-bottom sm:align-middle w-full max-w-lg text-left rounded-2xl shadow-2xl border border-white/20 bg-white/80 dark:bg-slate-800/80 backdrop-blur-lg ring-1 ring-black/5 overflow-hidden" >
+              {/* Accent top bar */}
+              <div className="h-1 w-full bg-gradient-to-r from-emerald-400 via-blue-500 to-fuchsia-500" />
+              <button
+                onClick={onClose}
+                aria-label="Close authentication modal"
+                className="absolute top-3 right-3 p-2 rounded-full bg-white/60 dark:bg-slate-700/60 hover:bg-white/90 dark:hover:bg-slate-700 transition shadow focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <X size={18} className="text-gray-600 dark:text-gray-300" />
+              </button>
+              <div className="px-6 py-6 md:py-7">
+                {mode === 'login' ? (
+                  <LoginForm
+                    onSwitchToSignup={() => handleSetMode('signup')}
+                    onClose={onClose}
+                  />
+                ) : (
+                  <SignupForm
+                    onSwitchToLogin={() => handleSetMode('login')}
+                    onClose={onClose}
+                  />
+                )}
+              </div>
+            </motion.div>
           </div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 };
 

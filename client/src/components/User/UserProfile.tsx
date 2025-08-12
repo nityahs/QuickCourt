@@ -352,7 +352,7 @@ const UserProfile: React.FC<UserProfileProps> = ({ onBack }) => {
                             Duration: {booking.duration} {booking.duration === 1 ? 'hour' : 'hours'}
                           </p>
                           <p className="text-gray-600">
-                            Total: ${booking.totalPrice.toFixed(2)}
+                            Total: ₹{booking.totalPrice.toFixed(2)}
                           </p>
                         </div>
                         <div className="mt-4 md:mt-0 flex flex-col items-start md:items-end">
