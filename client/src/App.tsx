@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SearchProvider } from './contexts/SearchContext';
+import { SocketProvider } from './contexts/SocketContext';
 import Header from './components/Layout/Header';
 import MobileMenu from './components/Layout/MobileMenu';
 import AuthModal from './components/Auth/AuthModal';
 import OtpVerification from './components/Auth/OtpVerification';
+import OfferNotifications from './components/Offers/OfferNotifications';
 import AppRoutes from './routes'; 
 
 function AppContent() {
@@ -68,6 +70,7 @@ function AppContent() {
           </div>
         </div>
       )}
+      <OfferNotifications />
     </div>
   );
 }
@@ -76,9 +79,11 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <SearchProvider>
-          <AppContent />
-        </SearchProvider>
+        <SocketProvider>
+          <SearchProvider>
+            <AppContent />
+          </SearchProvider>
+        </SocketProvider>
       </AuthProvider>
     </Router>
   );

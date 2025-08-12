@@ -7,6 +7,8 @@ const BookingSchema = new mongoose.Schema({
   start: String,
   end: String,
   price: Number,
+  basePrice: Number,
+  isNegotiated: { type: Boolean, default: false },
   status: { type: String, enum: ['pending', 'confirmed', 'cancelled', 'completed'], default: 'pending' },
   payment: { 
     method: { type: String, default: 'stripe' }, 
