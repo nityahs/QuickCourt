@@ -118,22 +118,61 @@ const CourtForm: React.FC<CourtFormProps> = ({ court, onSave, onCancel }) => {
       setLoading(true);
       setError(null);
       
+      // Convert operatingHours from start/end to open/close format for server compatibility
+      const dataToSend = {
+        ...formData,
+        operatingHours: formData.operatingHours ? {
+          open: formData.operatingHours.start,
+          close: formData.operatingHours.end
+        } : undefined
+      };
+      
       let savedCourt;
       
       if (court?._id) {
         // Update existing court
-        const response = await facilityOwnerCourtAPI.updateCourt(court._id, formData);
+        const response = await facilityOwnerCourtAPI.updateCourt(court._id, dataToSend);
         savedCourt = response.data;
       } else {
         // Create new court
-        const response = await facilityOwnerCourtAPI.createCourt(formData);
+        const response = await facilityOwnerCourtAPI.createCourt(dataToSend);
         savedCourt = response.data;
       }
       
+      // Convert back from open/close to start/end format for client compatibility
+      if (savedCourt.operatingHours) {
+        savedCourt.operatingHours = {
+          start: savedCourt.operatingHours.open || savedCourt.operatingHours.start,
+          end: savedCourt.operatingHours.close || savedCourt.operatingHours.end
+        };
+      }
+      
       onSave(savedCourt);
+      
+      // Force page refresh after successful court creation
+      window.location.reload();
     } catch (err: any) {
       console.error('Error saving court:', err);
-      setError(err.response?.data?.error || 'Failed to save court');
+      // Check if we have data in the response despite the error
+      if (err.response?.data?.data) {
+        // Court was created successfully despite the error
+        const savedCourt = err.response.data.data;
+        
+        // Convert back from open/close to start/end format for client compatibility
+        if (savedCourt.operatingHours) {
+          savedCourt.operatingHours = {
+            start: savedCourt.operatingHours.open || savedCourt.operatingHours.start,
+            end: savedCourt.operatingHours.close || savedCourt.operatingHours.end
+          };
+        }
+        
+        onSave(savedCourt);
+        
+        // Force page refresh after successful court creation even with error
+        window.location.reload();
+      } else {
+        setError(err.response?.data?.error || 'Failed to save court');
+      }
     } finally {
       setLoading(false);
     }

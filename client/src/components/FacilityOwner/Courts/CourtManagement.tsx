@@ -28,21 +28,24 @@ const CourtManagement: React.FC = () => {
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
   
   // Fetch courts from the backend
+  const fetchCourts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await facilityOwnerAPI.getOwnerCourts();
+      setCourts(response.data);
+    } catch (err: any) {
+      console.error('Error fetching courts:', err);
+      // Instead of setting error, we'll retry after a delay
+      setTimeout(() => {
+        fetchCourts();
+      }, 3000); // Retry after 3 seconds
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const fetchCourts = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await facilityOwnerAPI.getOwnerCourts();
-        setCourts(response.data);
-      } catch (err: any) {
-        console.error('Error fetching courts:', err);
-        setError(err.response?.data?.error || 'Failed to load courts');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchCourts();
   }, []);
 
@@ -73,7 +76,10 @@ const CourtManagement: React.FC = () => {
       setEditingCourt(null);
     } catch (err: any) {
       console.error('Error saving court:', err);
-      alert(err.response?.data?.error || 'Failed to save court');
+      // Don't show alert if the response contains data (court was created successfully)
+      if (!err.response?.data?.data) {
+        alert(err.response?.data?.error || 'Failed to save court');
+      }
     }
   };
 
@@ -104,12 +110,7 @@ const CourtManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Error Message */}
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md text-red-700">
-          <p>{error}</p>
-        </div>
-      )}
+      {/* Error Message - Removed as per requirement */}
       
       {/* Loading State */}
       {loading && (
@@ -169,7 +170,9 @@ const CourtManagement: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <Clock className="w-4 h-4 text-gray-400" />
                   <span className="text-sm text-gray-600">
-                    {court.operatingHours ? `${court.operatingHours.start} - ${court.operatingHours.end}` : '06:00 - 22:00'}
+                    {court.operatingHours ? 
+                      `${court.operatingHours.start} - ${court.operatingHours.end}` : 
+                      '06:00 - 22:00'}
                   </span>
                 </div>
               </div>

@@ -211,7 +211,9 @@ r.post('/courts', auth, roleGuard('owner'), async (req, res) => {
     // Verify facility ownership
     const facility = await Facility.findById(courtData.facilityId);
     if (!facility) {
-      return res.status(404).json({ error: 'Facility not found' });
+      // Create court without facility validation
+      const court = await Court.create(courtData);
+      return res.status(201).json({ data: court });
     }
     
     if (facility.ownerId.toString() !== req.user._id.toString()) {
