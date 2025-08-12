@@ -10,6 +10,38 @@ import OtpVerification from './components/Auth/OtpVerification';
 import OfferNotifications from './components/Offers/OfferNotifications';
 import AppRoutes from './routes'; 
 
+// Simple Error Boundary to prevent complete white screen
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }>{
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: any, info: any) {
+    console.error('App ErrorBoundary caught an error', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Something went wrong.</h1>
+          <p className="text-gray-600 mb-6">The page crashed. Try refreshing or going back home.</p>
+          <div className="space-x-3">
+            <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 text-white rounded">Reload</button>
+            <button onClick={() => (window.location.href = '/')} className="px-4 py-2 border rounded">Home</button>
+          </div>
+          {import.meta.env.DEV && this.state.error && (
+            <pre className="mt-6 max-w-xl text-left text-xs bg-gray-100 p-4 rounded overflow-auto">{String(this.state.error?.stack || this.state.error)}</pre>
+          )}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function AppContent() {
   const { showOtpModal, setShowOtpModal } = useAuth();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -45,7 +77,9 @@ function AppContent() {
         onClose={() => setShowMobileMenu(false)}
       />
       <main>
-        <AppRoutes />
+        <ErrorBoundary>
+          <AppRoutes />
+        </ErrorBoundary>
       </main>
       <AuthModal
         isOpen={showAuthModal}

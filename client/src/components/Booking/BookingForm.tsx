@@ -81,21 +81,27 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     fetchCourts();
   }, [venue._id, venue.id, selectedSport]);
 
-  // Fetch available time slots
+  // Fetch available time slots (unified endpoint)
   useEffect(() => {
     let ignore = false;
+    if (!selectedCourt || !selectedDate) return;
     (async () => {
       try {
-        if (selectedCourt && selectedDate) {
-          const response = await http.get(`/bookings/available-times?court=${selectedCourt}&date=${selectedDate}`);
-          const times = response.data;
-          if (!ignore) {
-            setTimeSlots(times as string[]);
-            if (times.length) setSelectedTime(times[0] as string);
-          }
+        const response = await http.get(`/bookings/available-times`, { params: { court: selectedCourt, date: selectedDate } });
+        const times: string[] = Array.isArray(response.data) ? response.data : [];
+        if (ignore) return;
+        setTimeSlots(times);
+        if (times.length && !times.includes(selectedTime)) {
+          setSelectedTime(times[0]);
+        }
+        if (times.length === 0) {
+          setSelectedTime('');
         }
       } catch (error) {
-        console.error('Failed to fetch time slots:', error);
+        if (!ignore) {
+          console.error('Failed to fetch time slots:', error);
+          setTimeSlots([]);
+        }
       }
     })();
     return () => { ignore = true; };
@@ -151,34 +157,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     setIsSubmitting(false);
   };
 
-  // Load available time slots for selected court + date
-  useEffect(() => {
-    let ignore = false;
-    if (!selectedCourt || !selectedDate) return;
-    (async () => {
-      try {
-        const { data } = await http.get(`/slots/${selectedCourt}`, { params: { date: selectedDate } });
-        if (!ignore) {
-          const avail = (data || []).filter((s:any) => !s.isBlocked && !s.isBooked);
-          // map available slots if needed in future
-          const times = Array.from(new Set(avail.map((s:any) => s.start))) as string[];
-          times.sort();
-          setTimeSlots(times);
-          // Only set selected time if there are available slots and current selection is not in the list
-          if (times.length && !times.includes(selectedTime)) {
-            setSelectedTime(times[0]);
-          } else if (times.length === 0) {
-            // Clear selected time if no slots available
-            setSelectedTime('');
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching time slots:', error);
-        setTimeSlots([]);
-      }
-    })();
-    return () => { ignore = true; };
-  }, [selectedCourt, selectedDate, selectedTime]);
+  // (Removed duplicate /slots fetch effect; unified on /bookings/available-times above)
 
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
@@ -237,12 +216,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
         <div className="lg:col-span-2">
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">{venue.name}</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">{venue.name}</h2>
               <div className="flex items-center text-gray-600">
                 <span>{venue.address}</span>
                 <div className="flex items-center ml-4">
-                  <span className="text-yellow-400">★</span>
-                  <span className="ml-1">{venue.rating.toFixed(2)} ({venue.reviewCount})</span>
+          <span className="text-yellow-400">★</span>
+          <span className="ml-1">{Number((venue as any)?.rating ?? 0).toFixed(2)} ({(venue as any)?.reviewCount ?? 0})</span>
                 </div>
               </div>
             </div>

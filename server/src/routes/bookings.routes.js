@@ -141,18 +141,26 @@ r.put('/:id/cancel', auth, async (req,res)=>{
 // Create pending booking with Stripe payment intent
 r.post('/create-pending', auth, async (req, res, next) => {
   try {
-  const { court, date, startTime, duration, amount, isNegotiated, basePrice } = req.body;
-    
-    // Validate required fields
-    if (!court || !date || !startTime || !duration || !amount) {
+    const { court, date, startTime, duration, amount, isNegotiated, basePrice } = req.body;
+
+    // Basic validation
+    if (!court || !date || !startTime || !duration || amount === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    if (Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
 
-    // Calculate end time
+    // Fetch court to derive facilityId and price sanity
+    const Court = (await import('../models/Court.js')).default;
+    const courtDoc = await Court.findById(court);
+    if (!courtDoc) return res.status(404).json({ error: 'Court not found' });
+
+    // Derive end time
     const [hours, minutes] = startTime.split(':').map(Number);
     const endTime = `${String(hours + duration).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    // Check if slot is available
+    // Prevent overlapping booking
     const existingBooking = await Booking.findOne({
       courtId: court,
       dateISO: date,
@@ -160,22 +168,27 @@ r.post('/create-pending', auth, async (req, res, next) => {
       end: endTime,
       status: { $in: ['confirmed', 'pending'] }
     });
-
     if (existingBooking) {
       return res.status(400).json({ error: 'Time slot is already booked' });
     }
 
-    // Create Stripe payment intent
-    const paymentIntent = await createStripePaymentIntent(amount, 'inr', {
-      court_id: court,
-      booking_date: date,
-      start_time: startTime,
-      duration: duration.toString()
-    });
+    // Create payment intent (with graceful fallback)
+    let paymentIntent;
+    try {
+      paymentIntent = await createStripePaymentIntent(amount, 'inr', {
+        court_id: court,
+        booking_date: date,
+        start_time: startTime,
+        duration: duration.toString()
+      });
+    } catch (stripeErr) {
+      return res.status(502).json({ error: stripeErr.message || 'Payment initialization failed' });
+    }
 
     // Create pending booking
     const booking = await Booking.create({
       userId: req.user._id,
+      facilityId: courtDoc.facilityId,
       courtId: court,
       dateISO: date,
       start: startTime,
@@ -198,7 +211,6 @@ r.post('/create-pending', auth, async (req, res, next) => {
       paymentIntentId: paymentIntent.id,
       message: 'Pending booking created successfully'
     });
-
   } catch (error) {
     next(error);
   }
@@ -276,27 +288,40 @@ r.get('/available-times', async (req, res, next) => {
       return res.status(400).json({ error: 'Court and date are required' });
     }
 
-    // Generate time slots (6 AM to 10 PM)
-    const timeSlots = [];
-    for (let hour = 6; hour <= 22; hour++) {
-      timeSlots.push(`${String(hour).padStart(2, '0')}:00`);
+    // Generate candidate base hours (6 AM inclusive to 22 PM exclusive to match owner UI which shows 6-22 spans)
+  const baseHours = [];
+    for (let hour = 6; hour < 22; hour++) {
+      baseHours.push(`${String(hour).padStart(2, '0')}:00`);
     }
 
-    // Get existing bookings for this court and date
+    // Fetch bookings that make slots unavailable
     const existingBookings = await Booking.find({
       courtId: court,
       dateISO: date,
       status: { $in: ['confirmed', 'pending'] }
-    });
+    }, 'start end');
 
-    // Filter out booked time slots
-    const availableTimes = timeSlots.filter(time => {
-      const [hours] = time.split(':').map(Number);
-      return !existingBookings.some(booking => {
-        const startHour = parseInt(booking.start.split(':')[0]);
-        const endHour = parseInt(booking.end.split(':')[0]);
-        return hours >= startHour && hours < endHour;
-      });
+    // Fetch blocked slots from TimeSlot collection
+    const blockedSlots = await TimeSlot.find({
+      courtId: court,
+      dateISO: date,
+      isBlocked: true
+    }, 'start end');
+
+    // Build availability by excluding any hour that overlaps a booking or blocked slot
+    const availableTimes = baseHours.filter(time => {
+      const hour = parseInt(time.split(':')[0], 10);
+      // Helper to determine overlap with start-end range
+  const overlaps = (start, end) => {
+        const s = parseInt(start.split(':')[0], 10);
+        const e = parseInt(end.split(':')[0], 10); // end hour
+        return hour >= s && hour < e; // hour block intersects booking/blocked interval
+      };
+      const booked = existingBookings.some(b => overlaps(b.start, b.end));
+      if (booked) return false;
+      const blocked = blockedSlots.some(bs => overlaps(bs.start, bs.end));
+      if (blocked) return false;
+      return true;
     });
 
     res.json(availableTimes);

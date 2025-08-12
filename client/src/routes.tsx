@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { facilitiesAPI } from './services/facilities';
-import { Building2, Plus, Edit, Calendar, MapPin } from 'lucide-react';
+import { bookingsAPI, UserBooking } from './services/bookings';
+import { Plus, Edit } from 'lucide-react';
 
 // Import components
 import HeroSection from './components/Home/HeroSection';
@@ -108,33 +109,61 @@ const HomePage = () => {
 const BookingsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  if (user?.role === 'admin') {
-    return <Navigate to="/" replace />;
-  }
-  
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [bookings, setBookings] = useState<UserBooking[]>([]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'user') return;
+    let ignore = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const data = await bookingsAPI.getMyBookings();
+        if (!ignore) setBookings(data);
+      } catch (e: any) {
+        if (!ignore) setError(e?.response?.data?.error || 'Failed to fetch bookings');
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    })();
+    return () => { ignore = true; };
+  }, [user?.id]);
+
+  if (user?.role === 'admin') return <Navigate to="/" replace />;
   if (user?.role === 'facility_owner') {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">All Bookings</h1>
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-gray-600 mb-4">As a facility owner, you can manage all bookings through your dashboard.</p>
-          <button
-            onClick={() => navigate('/facility-owner')}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Go to Dashboard
-          </button>
+          <button onClick={() => navigate('/facility-owner')} className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">Go to Dashboard</button>
         </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-8">My Bookings</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <h1 className="text-3xl font-bold text-gray-900">My Bookings</h1>
       <div className="bg-white rounded-lg shadow-md p-6">
-        <p className="text-gray-600">Your bookings will appear here.</p>
+        {loading && <p className="text-gray-600">Loading your bookings...</p>}
+        {error && <p className="text-red-600 mb-4">{error}</p>}
+        {!loading && !error && bookings.length === 0 && (
+          <p className="text-gray-600">You have no bookings yet.</p>
+        )}
+        <ul className="divide-y divide-gray-200">
+          {bookings.map(b => (
+            <li key={b._id} className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-gray-900">{b.dateISO} {b.start}-{b.end}</p>
+                <p className="text-xs text-gray-500">Status: {b.status}</p>
+              </div>
+              <div className="mt-2 sm:mt-0 text-sm font-semibold text-blue-600">₹{b.price}</div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );

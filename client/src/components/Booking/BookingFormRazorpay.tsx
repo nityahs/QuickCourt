@@ -35,7 +35,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
   const [duration, setDuration] = useState(1);
   const [selectedCourt, setSelectedCourt] = useState<string>('');
   const [selectedSport, setSelectedSport] = useState<string>('');
-  const [showPricingModal, setShowPricingModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
   const [courts, setCourts] = useState<Array<{ _id: string; name: string; pricePerHour: number; sport?: string }>>([]);
@@ -74,7 +73,14 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
     };
   }, []);
 
-  const totalPrice = (courts.find(c => c._id === selectedCourt)?.pricePerHour || venue.startingPrice) * duration;
+  const totalPrice = (() => {
+    if (!Array.isArray(courts) || courts.length === 0) {
+      return (venue as any)?.startingPrice ? (venue as any).startingPrice * duration : 0;
+    }
+    const court = courts.find(c => c && c._id === selectedCourt);
+    const base = court?.pricePerHour ?? (venue as any)?.startingPrice ?? 0;
+    return base * duration;
+  })();
 
   const validateBooking = () => {
     // Check if date is in the future
@@ -309,12 +315,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBack, onBookingCompl
         <div className="lg:col-span-2">
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">{venue.name}</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">{venue.name}</h2>
               <div className="flex items-center text-gray-600">
                 <span>{venue.address}</span>
                 <div className="flex items-center ml-4">
-                  <span className="text-yellow-400">★</span>
-                  <span className="ml-1">{venue.rating.toFixed(2)} ({venue.reviewCount})</span>
+          <span className="text-yellow-400">★</span>
+          <span className="ml-1">{Number((venue as any)?.rating ?? 0).toFixed(2)} ({(venue as any)?.reviewCount ?? 0})</span>
                 </div>
               </div>
             </div>

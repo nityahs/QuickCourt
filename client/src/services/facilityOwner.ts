@@ -184,6 +184,14 @@ export const facilityOwnerAPI = {
   getOwnerCourts: async (): Promise<{ data: any[] }> => {
     const res = await http.get('/facility-owner/courts');
     return { data: res.data?.data ?? [] };
+  },
+
+  // Convenience proxies for availability & slot blocking (used by TimeSlots UI)
+  getAvailability: (courtId: string, date: string): Promise<{ data: any[] }> => {
+    return http.get('/facility-owner/availability', { params: { courtId, date } });
+  },
+  blockSlot: (data: { courtId: string; dateISO: string; start: string; end: string; isBlocked: boolean }): Promise<{ data: any; message: string }> => {
+    return http.post('/facility-owner/block-slot', data);
   }
 };
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Plus, Edit, Trash2, Ban, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, Ban, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { facilityOwnerAPI } from '../../../services/facilityOwner';
 
@@ -24,7 +24,7 @@ interface Court {
 }
 
 const AvailabilityCalendar: React.FC = () => {
-  const { user } = useAuth();
+  useAuth();
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -57,14 +57,18 @@ const AvailabilityCalendar: React.FC = () => {
 
   const fetchAvailability = async () => {
     if (selectedCourt === 'all' || !selectedDate) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      const response = await facilityOwnerAPI.getAvailability(selectedCourt, selectedDate);
-      setTimeSlots(response.data);
+      const response: any = await facilityOwnerAPI.getAvailability(selectedCourt, selectedDate);
+      // API returns { data: [...] } so unwrap; fall back if already array
+      const raw = response?.data;
+      const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
+      setTimeSlots(list as TimeSlot[]);
     } catch (err: any) {
       console.error('Error fetching availability:', err);
+      setTimeSlots([]);
       setError('Failed to load availability');
     } finally {
       setLoading(false);
@@ -72,7 +76,9 @@ const AvailabilityCalendar: React.FC = () => {
   };
 
   const generateTimeSlots = () => {
-    const slots = [];
+    // Ensure we work with an array
+    const source: TimeSlot[] = Array.isArray(timeSlots) ? timeSlots : [];
+    const slots: TimeSlot[] = [];
     const startHour = 6; // 6 AM
     const endHour = 22; // 10 PM
     
@@ -81,7 +87,7 @@ const AvailabilityCalendar: React.FC = () => {
       const nextTime = `${(hour + 1).toString().padStart(2, '0')}:00`;
       
       // Find existing slot or create default
-      const existingSlot = timeSlots.find(slot => slot.start === time);
+      const existingSlot = source.find(slot => slot.start === time);
       
       if (existingSlot) {
         slots.push(existingSlot);
@@ -112,11 +118,11 @@ const AvailabilityCalendar: React.FC = () => {
       });
       
       // Update the slot in state
-      setTimeSlots(prev => prev.map(s => 
-        s.start === slot.start && s.dateISO === slot.dateISO 
+      setTimeSlots(prev => Array.isArray(prev) ? prev.map(s => 
+        s.start === slot.start && s.dateISO === slot.dateISO
           ? { ...s, isBlocked: block }
           : s
-      ));
+      ) : prev);
       
       // Show success message
       alert(response.message);
