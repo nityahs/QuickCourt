@@ -92,7 +92,7 @@ r.put('/:id/cancel', auth, async (req,res)=>{
 // Create pending booking with Stripe payment intent
 r.post('/create-pending', auth, async (req, res, next) => {
   try {
-    const { court, date, startTime, duration, amount } = req.body;
+  const { court, date, startTime, duration, amount, isNegotiated, basePrice } = req.body;
     
     // Validate required fields
     if (!court || !date || !startTime || !duration || !amount) {
@@ -132,6 +132,8 @@ r.post('/create-pending', auth, async (req, res, next) => {
       start: startTime,
       end: endTime,
       price: amount,
+      basePrice: basePrice || amount,
+      isNegotiated: Boolean(isNegotiated),
       status: 'pending',
       payment: {
         method: 'stripe',
@@ -198,7 +200,9 @@ r.post('/verify-payment', auth, async (req, res, next) => {
       },
       { 
         isBooked: true, 
-        priceSnapshot: booking.price 
+        priceSnapshot: booking.price,
+        negotiated: booking.isNegotiated,
+        basePrice: booking.basePrice
       },
       { upsert: true }
     );
