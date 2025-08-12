@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, MapPin, DollarSign, Clock, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, MapPin, DollarSign, Clock, Edit, Trash2 } from 'lucide-react';
 import CourtForm from './CourtForm';
 
 interface Court {
@@ -22,7 +22,7 @@ import { facilityOwnerAPI, facilityOwnerCourtAPI, facilityOwnerManagementAPI } f
 const CourtManagement: React.FC = () => {
   const [courts, setCourts] = useState<Court[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // Removed unused error state
 
   const [showForm, setShowForm] = useState(false);
   const [editingCourt, setEditingCourt] = useState<Court | null>(null);
@@ -31,7 +31,7 @@ const CourtManagement: React.FC = () => {
   const fetchCourts = async () => {
     try {
       setLoading(true);
-      setError(null);
+  // previously setError(null); removed with error state
       const response = await facilityOwnerAPI.getOwnerCourts();
       setCourts(response.data);
     } catch (err: any) {
@@ -164,7 +164,7 @@ const CourtManagement: React.FC = () => {
                 
                 <div className="flex items-center space-x-2">
                   <DollarSign className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">${court.pricePerHour}/hour</span>
+                  <span className="text-sm text-gray-600">₹{court.pricePerHour}/hour</span>
                 </div>
                 
                 <div className="flex items-center space-x-2">

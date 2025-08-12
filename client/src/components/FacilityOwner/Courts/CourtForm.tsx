@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Save } from 'lucide-react';
 import { facilityOwnerAPI, facilityOwnerCourtAPI } from '../../../services/facilityOwner';
 
@@ -255,10 +255,10 @@ const CourtForm: React.FC<CourtFormProps> = ({ court, onSave, onCancel }) => {
                 </select>
               </div>
               
-              {/* Price Per Hour */}
+        {/* Price Per Hour */}
               <div>
                 <label htmlFor="pricePerHour" className="block text-sm font-medium text-gray-700 mb-1">
-                  Price Per Hour ($) *
+          Price Per Hour (₹) *
                 </label>
                 <input
                   type="number"

@@ -91,7 +91,7 @@ const FacilityCard: React.FC<FacilityCardProps> = ({ facility, onEdit, onDelete 
         {/* Price Badge */}
         <div className="absolute bottom-4 left-4 backdrop-blur-sm px-3 py-1 rounded-lg shadow-lg" style={{ backgroundColor: 'var(--card-bg, white)', color: 'var(--text-primary, #111827)' }}>
           <span className="text-lg font-bold" style={{ color: 'var(--accent-primary, #10b981)' }}>
-            ${facility.startingPricePerHour}
+            ₹{facility.startingPricePerHour}
           </span>
           <span className="text-sm ml-1" style={{ color: 'var(--text-secondary, #4b5563)' }}>/hour</span>
         </div>

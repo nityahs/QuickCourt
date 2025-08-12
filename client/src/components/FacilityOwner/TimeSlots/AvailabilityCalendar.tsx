@@ -275,7 +275,7 @@ const AvailabilityCalendar: React.FC = () => {
                   </div>
                   
                   <div className="text-xs text-gray-600 mb-3">
-                    ${slot.priceSnapshot}/hour
+                    ₹{slot.priceSnapshot}/hour
                   </div>
                   
                   <div className="flex space-x-2">
