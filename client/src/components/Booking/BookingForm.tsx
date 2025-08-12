@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, Clock, ArrowLeft, CreditCard, Handshake } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Calendar, Clock, ArrowLeft, CreditCard } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { http } from '../../services/http';
 import StripePaymentWrapper from '../Payment/StripePaymentForm';
+import { Venue } from '../../types';
 
 interface Court {
   _id: string;
@@ -12,14 +13,7 @@ interface Court {
   courtType: string;
 }
 
-interface Venue {
-  _id: string;
-  name: string;
-  address: string;
-  rating: number;
-  reviewCount: number;
-  sportTypes: string[];
-}
+// Use shared Venue type from ../../types
 
 interface PaymentDetails {
   amount: number;
@@ -38,7 +32,7 @@ interface BookingFormProps {
 // const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_YourStripePublishableKey');
 
 const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onBack }) => {
-  const { user } = useAuth();
+  useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedCourt, setSelectedCourt] = useState('');
@@ -48,11 +42,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingError, setBookingError] = useState('');
-  // Bargain state
-  const [showBargain, setShowBargain] = useState(false);
-  const [offeredPrice, setOfferedPrice] = useState(0);
-  const [isBargainSubmitted, setIsBargainSubmitted] = useState(false);
-  const [bargainResponse, setBargainResponse] = useState<any>(null);
   
   // Payment flow states
   const [step, setStep] = useState<'booking' | 'payment' | 'confirmation'>('booking');
@@ -60,113 +49,57 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
   const [bookingData, setBookingData] = useState<any>(null);
 
   // Calculate total price
-  // Base price from court and duration
-  const basePrice = useMemo(() => {
+  const totalPrice = (() => {
     const court = courts.find(court => court._id === selectedCourt);
-    return court ? Math.round(court.pricePerHour * duration) : 0;
-  }, [courts, selectedCourt, duration]);
-
-  // Final price (either base or negotiated)
-  const finalPrice = showBargain && offeredPrice > 0 ? offeredPrice : basePrice;
+    return court ? court.pricePerHour * duration : 0;
+  })();
 
   // Fetch courts when venue or sport changes
   useEffect(() => {
     const fetchCourts = async () => {
       try {
-        // Preferred shape: GET /courts?facilityId=..&sport=..
-        const response = await http.get(`/courts`, { params: { facilityId: venue._id, sport: selectedSport } });
-        const list = (response.data && (response.data.data ?? response.data)) || [];
-        setCourts(list);
-        if (list.length > 0) {
-          setSelectedCourt(list[0]._id);
+        const facilityId = venue._id || venue.id;
+        const response = await http.get(`/courts?facility=${facilityId}&sportType=${selectedSport}`);
+        setCourts(response.data);
+        if (response.data.length > 0) {
+          setSelectedCourt(response.data[0]._id);
         } else {
           setSelectedCourt('');
         }
-      } catch (primaryErr) {
-        try {
-          // Fallback: /courts/by-facility/:facilityId then filter by sport if present
-          const res2 = await http.get(`/courts/by-facility/${venue._id}`);
-          const all = res2.data || [];
-          const filtered = selectedSport ? all.filter((c: any) => c.sport === selectedSport || c.sportType === selectedSport) : all;
-          setCourts(filtered);
-          if (filtered.length > 0) setSelectedCourt(filtered[0]._id); else setSelectedCourt('');
-        } catch (fallbackErr) {
-          console.error('Failed to fetch courts:', primaryErr, fallbackErr);
-          setCourts([]);
-          setSelectedCourt('');
-        }
+      } catch (error) {
+        console.error('Failed to fetch courts:', error);
       }
     };
 
-    if (venue._id && selectedSport) {
+    if ((venue._id || venue.id) && selectedSport) {
       fetchCourts();
     }
-  }, [venue._id, selectedSport]);
+  }, [venue._id, venue.id, selectedSport]);
 
-  // Remove duplicate available-times fetch. We'll rely on slots/:court below.
-
-  const handleBargainSubmit = async () => {
-    if (!selectedCourt || !selectedDate || !selectedTime) {
-      setBookingError('Please fill in all required fields');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setBookingError('');
-
-    try {
-      // Create an offer
-      const response = await http.post('/offers', {
-        facilityId: venue._id,
-        courtId: selectedCourt,
-        dateISO: selectedDate,
-        start: selectedTime,
-        end: String(Math.min(23, parseInt(selectedTime.split(':')[0]) + duration)).padStart(2, '0') + ':' + selectedTime.split(':')[1],
-        originalPrice: basePrice,
-        offeredPrice: offeredPrice
-      });
-
-      setBargainResponse(response.data);
-      setIsBargainSubmitted(true);
-      
-      // If offer is auto-accepted, proceed to payment
-      if (response.data.status === 'accepted') {
-        // Create a pending booking with the accepted price
-        const bookingResponse = await http.post('/bookings/create-pending', {
-          court: selectedCourt,
-          date: selectedDate,
-          startTime: selectedTime,
-          duration,
-          amount: offeredPrice,
-        });
-        
-        setBookingData(bookingResponse.data.booking);
-        setPaymentDetails({
-          amount: offeredPrice,
-          clientSecret: bookingResponse.data.clientSecret,
-          paymentIntentId: bookingResponse.data.paymentIntentId,
-          bookingId: bookingResponse.data.booking._id || bookingResponse.data.booking.id,
-        });
-        
-        setStep('payment');
+  // Fetch available time slots
+  useEffect(() => {
+    let ignore = false;
+    (async () => {
+      try {
+        if (selectedCourt && selectedDate) {
+          const response = await http.get(`/bookings/available-times?court=${selectedCourt}&date=${selectedDate}`);
+          const times = response.data;
+          if (!ignore) {
+            setTimeSlots(times as string[]);
+            if (times.length) setSelectedTime(times[0] as string);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch time slots:', error);
       }
-    } catch (error: any) {
-      console.error('Bargain error:', error);
-      setBookingError(error.response?.data?.message || 'Failed to submit offer');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    })();
+    return () => { ignore = true; };
+  }, [selectedCourt, selectedDate]);
 
   const handleBooking = async () => {
     if (!selectedCourt || !selectedDate || !selectedTime) {
       setBookingError('Please fill in all required fields');
       return;
-    }
-
-    // If bargaining is enabled, use that flow instead
-    if (showBargain) {
-      return handleBargainSubmit();
     }
 
     setIsSubmitting(true);
@@ -178,13 +111,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
         date: selectedDate,
         startTime: selectedTime,
         duration,
-        amount: finalPrice,
-        isNegotiated: showBargain && offeredPrice > 0 && offeredPrice !== basePrice,
+        amount: totalPrice,
       });
 
       setBookingData(response.data.booking);
       setPaymentDetails({
-        amount: finalPrice,
+        amount: totalPrice,
         clientSecret: response.data.clientSecret,
         paymentIntentId: response.data.paymentIntentId,
         bookingId: response.data.booking._id || response.data.booking.id,
@@ -242,38 +174,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
     })();
     return () => { ignore = true; };
   }, [selectedCourt, selectedDate, selectedTime]);
-
-  // Initialize offered price whenever base price changes
-  useEffect(() => {
-    if (basePrice > 0) setOfferedPrice(basePrice);
-  }, [basePrice]);
-
-  // Heuristic acceptance model
-  const computeAcceptance = (price: number) => {
-    if (basePrice <= 0) return { probability: 0, label: 'N/A' };
-    // Peak hours: 17-21 or weekends
-    const day = new Date(selectedDate).getDay(); // 0 Sun ... 6 Sat
-    const isWeekend = day === 0 || day === 6;
-    const hour = selectedTime ? parseInt(selectedTime.split(':')[0], 10) : 9;
-    const isPeakHour = hour >= 17 && hour <= 21;
-
-    const peakMultiplier = (isWeekend ? 1.1 : 1.0) * (isPeakHour ? 1.1 : 1.0);
-
-    const minAcceptable = Math.round(basePrice * (isWeekend || isPeakHour ? 0.9 : 0.8));
-    const likelyAccept = Math.round(basePrice * (isWeekend || isPeakHour ? 0.95 : 0.9));
-    const quickAccept = Math.round(basePrice * peakMultiplier);
-
-    let probability = 0;
-    if (price >= quickAccept) probability = 95;
-    else if (price >= likelyAccept) probability = 75;
-    else if (price >= minAcceptable) probability = 50;
-    else probability = Math.max(5, Math.round((price / minAcceptable) * 40));
-
-    const label = probability >= 90 ? 'Very likely' : probability >= 70 ? 'Likely' : probability >= 50 ? 'Possible' : 'Unlikely';
-    return { probability, label, bands: { minAcceptable, likelyAccept, quickAccept } } as any;
-  };
-
-  const acceptance = computeAcceptance(offeredPrice);
 
 
   const handlePaymentSuccess = async (paymentIntentId: string) => {
@@ -447,96 +347,6 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 )}
               </div>
 
-              {/* Price Negotiation */}
-              {basePrice > 0 && (
-                <div className="border border-gray-200 rounded-lg p-4 bg-gradient-to-r from-blue-50 to-green-50">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center">
-                      <Handshake className="h-5 w-5 text-blue-600 mr-2" />
-                      <span className="font-medium text-gray-800">Price Negotiation</span>
-                    </div>
-                    <button
-                      onClick={() => setShowBargain(!showBargain)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                        showBargain
-                          ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {showBargain ? 'Fixed Price' : 'Try Bargain'}
-                    </button>
-                  </div>
-
-                  {!showBargain && (
-                    <div className="text-sm text-gray-700 flex items-center justify-between">
-                      <span>Base Price</span>
-                      <div className="font-semibold text-gray-800">₹{basePrice}</div>
-                    </div>
-                  )}
-
-                  {showBargain && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between text-sm text-gray-700">
-                        <span>Your Offer</span>
-                        <div className="font-semibold text-gray-800">₹{offeredPrice}</div>
-                      </div>
-
-                      <input
-                        type="range"
-                        min={Math.floor(basePrice * 0.6)}
-                        max={Math.ceil(basePrice * 1.2)}
-                        step={10}
-                        value={offeredPrice}
-                        onChange={(e) => setOfferedPrice(parseInt(e.target.value, 10))}
-                        className="w-full accent-blue-600"
-                      />
-
-                      <div className="grid grid-cols-3 gap-3 text-xs">
-                        <div className="bg-white rounded-md p-3 border border-green-200">
-                          <div className="text-green-700 font-semibold">Very Likely</div>
-                          <div className="text-gray-700">₹{computeAcceptance(basePrice).bands.quickAccept}</div>
-                        </div>
-                        <div className="bg-white rounded-md p-3 border border-yellow-200">
-                          <div className="text-yellow-700 font-semibold">Likely</div>
-                          <div className="text-gray-700">₹{computeAcceptance(basePrice).bands.likelyAccept}</div>
-                        </div>
-                        <div className="bg-white rounded-md p-3 border border-blue-200">
-                          <div className="text-blue-700 font-semibold">Minimum</div>
-                          <div className="text-gray-700">₹{computeAcceptance(basePrice).bands.minAcceptable}</div>
-                        </div>
-                      </div>
-
-                      <div className="text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-700">Acceptance chance</span>
-                          <span className={
-                            acceptance.probability >= 75
-                              ? 'text-green-700 font-semibold'
-                              : acceptance.probability >= 50
-                              ? 'text-yellow-700 font-semibold'
-                              : 'text-red-700 font-semibold'
-                          }>
-                            {acceptance.label} ({acceptance.probability}%)
-                          </span>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded mt-2">
-                          <div
-                            className={`h-2 rounded ${
-                              acceptance.probability >= 75
-                                ? 'bg-green-500'
-                                : acceptance.probability >= 50
-                                ? 'bg-yellow-500'
-                                : 'bg-red-500'
-                            }`}
-                            style={{ width: `${Math.min(100, Math.max(0, acceptance.probability))}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {bookingError && (
                 <div className="text-red-600 text-sm mb-2 p-3 bg-red-50 rounded-md">
                   {bookingError}
@@ -553,7 +363,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
                 ) : (
                   <>
                     <CreditCard size={16} className="mr-2" />
-                    Proceed to Payment - ₹{finalPrice}
+                    Proceed to Payment - ₹{totalPrice}
                   </>
                 )}
               </button>
@@ -597,7 +407,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ venue, onBookingComplete, onB
               <hr className="my-4" />
               <div className="flex justify-between text-lg font-semibold">
                 <span>Total:</span>
-                <span className="text-blue-600">₹{finalPrice}</span>
+                <span className="text-blue-600">₹{totalPrice}</span>
               </div>
             </div>
           </div>

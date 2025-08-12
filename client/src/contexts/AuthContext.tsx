@@ -51,11 +51,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (token) {
           const userResponse = await authAPI.getProfile(token);
           const userData = userResponse.data;
+          const normalizedRole = (userData.role === 'owner') ? 'facility_owner' : (userData.role as User['role']);
           const clientUser: User = {
             id: userData._id,
             email: userData.email,
             fullName: userData.name,
-            role: userData.role as User['role'],
+            role: normalizedRole,
             isVerified: userData.otpVerified,
             avatar: userData.avatar,
           };

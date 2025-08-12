@@ -101,6 +101,7 @@ const HomePage = () => {
 // Bookings Page Component
 const BookingsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   if (user?.role === 'admin') {
     return <Navigate to="/" replace />;
@@ -113,7 +114,7 @@ const BookingsPage = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
           <p className="text-gray-600 mb-4">As a facility owner, you can manage all bookings through your dashboard.</p>
           <button
-            onClick={() => window.location.hash = 'facility-owner'}
+            onClick={() => navigate('/facility-owner')}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard
