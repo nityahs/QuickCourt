@@ -19,6 +19,9 @@ import FacilityOwnerLayout from './components/FacilityOwner/Layout/FacilityOwner
 import FacilityList from './components/FacilityOwner/Facilities/FacilityList';
 import BookingOverview from './components/FacilityOwner/Bookings/BookingOverview';
 import CourtManagement from './components/FacilityOwner/Courts/CourtManagement';
+import AdminFacilitiesPage from './components/Admin/AdminFacilitiesPage';
+import PendingFacilitiesPage from './components/Admin/PendingFacilitiesPage';
+import AdminAuthFix from './components/Admin/AdminAuthFix';
 import { Venue, Court } from './types';
 
 // Transform server facility data to frontend venue format
@@ -355,6 +358,7 @@ const AdminRoutes = () => {
       <Route path="/" element={<AdminDashboard />} />
       <Route path="/facilities" element={<AdminFacilitiesPage />} />
       <Route path="/facilities/pending" element={<PendingFacilitiesPage />} />
+      <Route path="/auth-fix" element={<AdminAuthFix />} />
       <Route path="/users" element={<UserManagementPage />} />
       <Route path="/bookings" element={<AdminBookingsPage />} />
       <Route path="/stats" element={<AdminStatsPage />} />
@@ -516,8 +520,6 @@ const EditCourtPage = () => (
 );
 const OwnerTimeSlotsPage = () => <AvailabilityCalendar />;
 const OwnerProfilePage = () => <UserProfile onBack={() => window.history.back()} />;
-const AdminFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Facilities - Coming Soon</h1></div>;
-const PendingFacilitiesPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Pending Facilities - Coming Soon</h1></div>;
 const UserManagementPage = () => <div className="p-8"><h1 className="text-2xl font-bold">User Management - Coming Soon</h1></div>;
 const AdminBookingsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Bookings - Coming Soon</h1></div>;
 const AdminStatsPage = () => <div className="p-8"><h1 className="text-2xl font-bold">Admin Stats - Coming Soon</h1></div>;

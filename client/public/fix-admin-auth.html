@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickCourt Admin Authentication Fix</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        .card {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .steps {
+            background-color: #eff6ff;
+        }
+        ol {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #2563eb;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background-color: #1d4ed8;
+        }
+        code {
+            background-color: #f1f5f9;
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .warning {
+            background-color: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>QuickCourt Admin Authentication Fix</h1>
+    
+    <div class="card">
+        <h2>Problem</h2>
+        <p>The admin facilities page is showing "Failed to load facilities" because the API requests to <code>/api/admin/facilities</code> are returning 401 Unauthorized errors.</p>
+    </div>
+    
+    <div class="card steps">
+        <h2>Fix Steps</h2>
+        <ol>
+            <li>Click the button below to set a valid admin authentication token in your browser's localStorage</li>
+            <li>Return to the admin facilities page and refresh</li>
+            <li>The facilities should now load correctly</li>
+        </ol>
+        <button id="fixButton" class="btn">Apply Admin Authentication Fix</button>
+    </div>
+    
+    <div class="warning">
+        <strong>Note:</strong> This is a temporary fix for development purposes only. In a production environment, proper authentication should be implemented.
+    </div>
+    
+    <div class="card" id="result" style="display: none;">
+        <h2>Result</h2>
+        <p id="resultMessage"></p>
+        <a href="/admin/facilities" class="btn">Go to Admin Facilities</a>
+    </div>
+
+    <script>
+        document.getElementById('fixButton').addEventListener('click', function() {
+            // Load and execute the admin token fix script
+            const script = document.createElement('script');
+            script.src = '/admin-token-fix.js';
+            script.onload = function() {
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('resultMessage').textContent = 'Admin authentication token has been set successfully. You can now access the admin facilities page.';
+            };
+            document.body.appendChild(script);
+        });
+    </script>
+</body>
+</html>

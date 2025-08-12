@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { 
   Users, 
   Building2, 
@@ -62,6 +63,25 @@ const ChartCard: React.FC<ChartCardProps> = ({ title, children, delay }) => (
 );
 
 const AdminDashboard: React.FC = () => {
+  const [showAuthAlert, setShowAuthAlert] = useState(true);
+  
+  // Check if there are API errors by looking at localStorage
+  useEffect(() => {
+    const hasAuthToken = localStorage.getItem('quickcourt_token');
+    const userJson = localStorage.getItem('quickcourt_user');
+    let isAdmin = false;
+    
+    if (userJson) {
+      try {
+        const userData = JSON.parse(userJson);
+        isAdmin = userData.role === 'admin';
+      } catch (e) {
+        console.error('Error parsing user data:', e);
+      }
+    }
+    
+    setShowAuthAlert(!hasAuthToken || !isAdmin);
+  }, []);
   const { user } = useAuth();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -157,6 +177,26 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 px-4 sm:px-6 lg:px-8">
+      {showAuthAlert && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">Authentication Issue Detected</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>We've detected an issue with admin authentication. This may cause problems when accessing admin API endpoints.</p>
+                <Link to="/admin/auth-fix" className="mt-2 inline-block px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700">
+                  Fix Authentication Issue
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Welcome Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

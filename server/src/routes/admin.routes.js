@@ -6,6 +6,21 @@ import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 const r = Router();
 
+r.get('/facilities', auth, roleGuard('admin'), async (req,res)=>{
+  const facilities = await Facility.find().populate('ownerId', 'fullName name');
+  
+  // Transform data to include owner name
+  const transformedFacilities = facilities.map(facility => {
+    const facilityObj = facility.toObject();
+    return {
+      ...facilityObj,
+      ownerName: facilityObj.ownerId?.fullName || facilityObj.ownerId?.name || 'Unknown'
+    };
+  });
+  
+  res.json(transformedFacilities);
+});
+
 r.get('/facilities/pending', auth, roleGuard('admin'), async (req,res)=>{
   const rows = await Facility.find({ status:'pending' });
   res.json(rows);
