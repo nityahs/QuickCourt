@@ -21,6 +21,22 @@ r.get('/facility/:id', async (req, res) => {
     Review.countDocuments(filter)
   ]);
 
+  // Debug logging
+  console.log(`\n=== DEBUG: Reviews for facility ${req.params.id} ===`);
+  console.log(`Total reviews found: ${rows.length}`);
+  rows.forEach((review, i) => {
+    console.log(`Review ${i + 1}:`, {
+      _id: review._id,
+      rating: review.rating,
+      text: review.text,
+      hasText: !!review.text,
+      textLength: review.text?.length || 0,
+      userId: review.userId?.name || 'No user',
+      createdAt: review.createdAt
+    });
+  });
+  console.log('=== END DEBUG ===\n');
+
   res.json({ data: rows, total, page, limit });
 });
 
